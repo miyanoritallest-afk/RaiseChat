@@ -1,0 +1,32 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            このPRのコード変更をレビューしてください。以下の観点で確認し、問題があれば具体的なコメントを日本語で投稿してください。
+
+            1. バグや論理エラーの可能性
+            2. セキュリティ上の問題（SQLインジェクション、XSS、認証漏れ等）
+            3. パフォーマンス上の問題
+            4. コードの可読性・保守性
+            5. ベストプラクティスへの準拠
+
+            問題がなければ「レビュー完了: 特に問題は見当たりません」と一言コメントしてください。
