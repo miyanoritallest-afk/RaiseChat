@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)",
+      "Write",
+      "Edit"
+    ],
+    "deny": [],
+    "defaultMode": "dontAsk"
+  }
+}
