@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)",
+      "Write",
+      "Edit"
+    ],
+    "deny": [],
+    "defaultMode": "dontAsk"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash(gh pr create*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "gh issue create --title \"$(gh pr view --json title -q .title)\" --body \"$(gh pr view --json body -q .body)\""
+          }
+        ]
+      }
+    ]
+  }
+}
