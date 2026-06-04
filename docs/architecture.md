@@ -225,6 +225,9 @@ channel:{channelId} ルーム全員に message:received を配信
 
 ### 主要な設計判断
 
+**ピン留め状態は Pin テーブルのレコード有無で判定する**
+`Message.isPinned` フラグを持たず、`Pin` テーブルにレコードが存在するかどうかだけでピン留め状態を判定する。フラグとテーブルの二重管理による不整合を防ぐため。
+
 **スレッドはmessagesテーブルで自己参照**
 ```
 messages.thread_id → messages.id（自己参照）

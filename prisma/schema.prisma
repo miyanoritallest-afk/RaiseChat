@@ -56,8 +56,9 @@ model Workspace {
   updatedAt   DateTime @updatedAt
 
   // リレーション
-  members  WorkspaceMember[]
-  channels Channel[]
+  members       WorkspaceMember[]
+  channels      Channel[]
+  notifications Notification[]
 }
 
 model WorkspaceMember {
@@ -95,10 +96,11 @@ model Channel {
   updatedAt   DateTime @updatedAt
 
   // リレーション
-  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  members   ChannelMember[]
-  messages  Message[]
-  pins      Pin[]
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members       ChannelMember[]
+  messages      Message[]
+  pins          Pin[]
+  notifications Notification[]
 }
 
 model ChannelMember {
@@ -126,7 +128,6 @@ model Message {
   content               String
   threadId              String?
   isAlsoPostedToChannel Boolean   @default(false)
-  isPinned              Boolean   @default(false)
   editedAt              DateTime?
   deletedAt             DateTime?
   createdAt             DateTime  @default(now())
@@ -253,17 +254,21 @@ model DmMessageAttachment {
 // ─────────────────────────────────────────────
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  type      NotificationType
-  messageId String?
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  messageId   String?
+  channelId   String?
+  workspaceId String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   // リレーション
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message?   @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  channel   Channel?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
 // ─────────────────────────────────────────────
