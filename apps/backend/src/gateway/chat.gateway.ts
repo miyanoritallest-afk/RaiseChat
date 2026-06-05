@@ -18,6 +18,10 @@ import { WsChannelJoinDto } from './dto/ws-channel-join.dto'
 import { WsMessageSendDto } from './dto/ws-message-send.dto'
 import { WsMessageEditDto } from './dto/ws-message-edit.dto'
 import { WsMessageDeleteDto } from './dto/ws-message-delete.dto'
+import { WsDmJoinDto } from './dto/ws-dm-join.dto'
+import { WsDmMessageSendDto } from './dto/ws-dm-message-send.dto'
+import { WsDmMessageEditDto } from './dto/ws-dm-message-edit.dto'
+import { WsDmMessageDeleteDto } from './dto/ws-dm-message-delete.dto'
 
 type AuthenticatedSocket = Socket & { userId: string; username: string }
 
@@ -48,6 +52,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ;(client as AuthenticatedSocket).username = payload.username
 
       await this.gatewayService.setUserOnline(payload.sub)
+
+      // 通知のためにユーザー個別ルームに join させる
+      await client.join(`user:${payload.sub}`)
     } catch {
       client.disconnect(true)
     }
@@ -111,6 +118,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     })
 
     this.server.to(`channel:${dto.channelId}`).emit('message:received', message)
+
+    // スレッド返信の場合、親メッセージの返信数更新をチャンネル全員に通知
+    if (dto.threadId) {
+      const parent = await this.gatewayService.getMessageById(dto.threadId)
+      if (parent) {
+        this.server.to(`channel:${dto.channelId}`).emit('thread:reply_count_updated', {
+          parentMessageId: dto.threadId,
+          replyCount: parent._count.replies,
+          latestRepliers: parent.replies.map((r) => r.user),
+        })
+        // スレッド返信の通知を親メッセージ投稿者に送信
+        this.server
+          .to(`user:${parent.userId}`)
+          .emit('notification:received', { type: 'THREAD_REPLY', messageId: message.id })
+      }
+    }
+
+    // @メンション対象ユーザーに通知を送信
+    const mentionTargets = await this.gatewayService.getMentionTargetUserIds(
+      dto.content,
+      dto.channelId,
+      client.userId,
+    )
+    for (const userId of mentionTargets) {
+      this.server
+        .to(`user:${userId}`)
+        .emit('notification:received', { type: 'MENTION', messageId: message.id })
+    }
   }
 
   @SubscribeMessage('message:edit')
@@ -144,6 +179,97 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .to(`channel:${result.channelId}`)
       .emit('message:deleted', { messageId: result.id, channelId: result.channelId })
+  }
+
+  // --- DM ハンドラ ---
+  // 全 dm:* ハンドラで isDmRoomMember を呼び IDOR を防止する
+
+  @SubscribeMessage('dm:join')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handleDmJoin(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsDmJoinDto,
+  ) {
+    const isMember = await this.gatewayService.isDmRoomMember(client.userId, dto.dmRoomId)
+    if (!isMember) throw new WsException('このDMへのアクセス権限がありません')
+    await client.join(`dm:${dto.dmRoomId}`)
+  }
+
+  @SubscribeMessage('dm:leave')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handleDmLeave(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsDmJoinDto,
+  ) {
+    await client.leave(`dm:${dto.dmRoomId}`)
+  }
+
+  @SubscribeMessage('dm:send')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handleDmSend(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsDmMessageSendDto,
+  ) {
+    const isMember = await this.gatewayService.isDmRoomMember(client.userId, dto.dmRoomId)
+    if (!isMember) throw new WsException('このDMへのアクセス権限がありません')
+
+    const message = await this.gatewayService.createDmMessage({
+      dmRoomId: dto.dmRoomId,
+      userId: client.userId,
+      content: dto.content,
+    })
+
+    this.server.to(`dm:${dto.dmRoomId}`).emit('dm:received', message)
+
+    // DM未読通知をルーム内の他メンバーに送信（user:X ルームを使ってリアルタイム通知）
+    const dmMemberIds = await this.gatewayService.getDmRoomMemberIds(dto.dmRoomId, client.userId)
+    for (const userId of dmMemberIds) {
+      this.server
+        .to(`user:${userId}`)
+        .emit('notification:received', { type: 'UNREAD', dmRoomId: dto.dmRoomId })
+    }
+  }
+
+  @SubscribeMessage('dm:edit')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handleDmEdit(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsDmMessageEditDto,
+  ) {
+    const isMember = await this.gatewayService.isDmRoomMember(client.userId, dto.dmRoomId)
+    if (!isMember) throw new WsException('このDMへのアクセス権限がありません')
+
+    const message = await this.gatewayService.updateDmMessage({
+      messageId: dto.messageId,
+      dmRoomId: dto.dmRoomId,
+      userId: client.userId,
+      content: dto.content,
+    })
+    if (!message) throw new WsException('このメッセージを編集する権限がありません')
+
+    this.server.to(`dm:${dto.dmRoomId}`).emit('dm:updated', message)
+  }
+
+  @SubscribeMessage('dm:delete')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handleDmDelete(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsDmMessageDeleteDto,
+  ) {
+    const isMember = await this.gatewayService.isDmRoomMember(client.userId, dto.dmRoomId)
+    if (!isMember) throw new WsException('このDMへのアクセス権限がありません')
+
+    const result = await this.gatewayService.deleteDmMessage({
+      messageId: dto.messageId,
+      dmRoomId: dto.dmRoomId,
+      userId: client.userId,
+    })
+    if (!result) throw new WsException('このメッセージを削除する権限がありません')
+
+    this.server.to(`dm:${dto.dmRoomId}`).emit('dm:deleted', {
+      messageId: result.id,
+      dmRoomId: result.dmRoomId,
+    })
   }
 
   @SubscribeMessage('typing:start')

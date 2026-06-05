@@ -1,37 +1,32 @@
 'use client'
 
 import { useState } from 'react'
-import type { Message } from '@/types/message'
+import type { DmMessage } from '@/types/dm'
 import { useAuthStore } from '@/stores/auth.store'
-import { messageApi } from '@/lib/api/message.api'
-import { useMessageStore } from '@/stores/message.store'
-import { useThreadStore } from '@/stores/thread.store'
+import { dmApi } from '@/lib/api/dm.api'
+import { useDmStore } from '@/stores/dm.store'
 
 type Props = {
-  message: Message
-  wsId: string
-  channelId: string
+  message: DmMessage
 }
 
-export function MessageItem({ message, wsId, channelId }: Props) {
+export function DmMessageItem({ message }: Props) {
   const { user } = useAuthStore()
-  const { updateMessage, removeMessage } = useMessageStore()
-  const { openThread } = useThreadStore()
+  const { currentRoom, updateMessage, removeMessage } = useDmStore()
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const isAuthor = user?.id === message.user.id
-  const hasReplies = message._count.replies > 0
 
   const handleEdit = async () => {
-    if (!editContent.trim() || editContent === message.content) {
+    if (!editContent.trim() || editContent === message.content || !currentRoom) {
       setIsEditing(false)
       return
     }
     setIsSubmitting(true)
     try {
-      const updated = await messageApi.updateMessage(wsId, channelId, message.id, editContent)
+      const updated = await dmApi.updateDmMessage(currentRoom.id, message.id, editContent)
       updateMessage(updated)
       setIsEditing(false)
     } catch {
@@ -42,9 +37,9 @@ export function MessageItem({ message, wsId, channelId }: Props) {
   }
 
   const handleDelete = async () => {
-    if (!confirm('このメッセージを削除しますか？')) return
+    if (!confirm('このメッセージを削除しますか？') || !currentRoom) return
     try {
-      await messageApi.deleteMessage(wsId, channelId, message.id)
+      await dmApi.deleteDmMessage(currentRoom.id, message.id)
       removeMessage(message.id)
     } catch {
       // ignore
@@ -109,56 +104,22 @@ export function MessageItem({ message, wsId, channelId }: Props) {
         ) : (
           <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{message.content}</p>
         )}
-
-        {/* 返信数とアバター（返信がある場合のみ表示） */}
-        {hasReplies && !isEditing && (
-          <button
-            onClick={() => openThread(message)}
-            className="mt-1.5 flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
-          >
-            <div className="flex -space-x-1">
-              {message.replies.slice(0, 3).map((r) => (
-                <div
-                  key={r.user.id}
-                  className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs border border-white"
-                  title={r.user.displayName}
-                >
-                  {r.user.displayName.charAt(0).toUpperCase()}
-                </div>
-              ))}
-            </div>
-            <span>{message._count.replies} 件の返信</span>
-          </button>
-        )}
       </div>
 
-      {!isEditing && (
+      {isAuthor && !isEditing && (
         <div className="hidden group-hover:flex items-center gap-1 self-start mt-1">
-          {/* 返信がない場合のみ返信ボタンをホバー時に表示（返信があれば本文下に常時表示） */}
-          {!hasReplies && (
-            <button
-              onClick={() => openThread(message)}
-              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-            >
-              返信
-            </button>
-          )}
-          {isAuthor && (
-            <>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-              >
-                編集
-              </button>
-              <button
-                onClick={() => void handleDelete()}
-                className="px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-              >
-                削除
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => setIsEditing(true)}
+            className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+          >
+            編集
+          </button>
+          <button
+            onClick={() => void handleDelete()}
+            className="px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+          >
+            削除
+          </button>
         </div>
       )}
     </div>

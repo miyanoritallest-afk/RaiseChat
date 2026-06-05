@@ -63,4 +63,13 @@ export class MessagesController {
   ) {
     return this.messagesService.deleteMessage(messageId, channelId, user.id)
   }
+
+  @Get(':messageId/replies')
+  async getReplies(
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: JwtUser,
+    @Query() dto: GetMessagesDto,
+  ) {
+    return this.messagesService.getReplies(messageId, user.id, dto)
+  }
 }

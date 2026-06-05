@@ -36,6 +36,17 @@ const MESSAGE_SELECT = {
   _count: {
     select: { replies: true },
   },
+  // スレッドパネルのアバター表示用に最新3件の返信者を取得
+  replies: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'desc' as const },
+    take: 3,
+    select: {
+      user: {
+        select: { id: true, displayName: true, avatarUrl: true },
+      },
+    },
+  },
 } as const
 
 @Injectable()
@@ -87,6 +98,16 @@ export class MessagesRepository {
       where: { id: messageId },
       data: { deletedAt: new Date() },
       select: { id: true, channelId: true },
+    })
+  }
+
+  async findRepliesByMessageId(parentMessageId: string, cursor?: string, limit = 50) {
+    return this.prisma.message.findMany({
+      where: { threadId: parentMessageId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: MESSAGE_SELECT,
     })
   }
 }

@@ -34,6 +34,28 @@ export class MessagesService {
     }
   }
 
+  async getReplies(parentMessageId: string, userId: string, dto: GetMessagesDto) {
+    const limit = dto.limit ?? 50
+    const rows = await this.messagesRepository.findRepliesByMessageId(
+      parentMessageId,
+      dto.cursor,
+      limit,
+    )
+
+    const hasMore = rows.length > limit
+    const replies = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore ? replies[replies.length - 1].id : null
+
+    return {
+      replies: replies.map((msg) => ({
+        ...msg,
+        reactions: this.aggregateReactions(msg.reactions, userId),
+      })),
+      nextCursor,
+      hasMore,
+    }
+  }
+
   async createMessage(channelId: string, userId: string, dto: CreateMessageDto) {
     const message = await this.messagesRepository.create(channelId, userId, dto)
     return {
