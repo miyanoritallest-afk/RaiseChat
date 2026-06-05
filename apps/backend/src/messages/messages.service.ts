@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { MessagesRepository } from './messages.repository'
 import { WorkspacesRepository } from '../workspaces/workspaces.repository'
+import { ChannelsRepository } from '../channels/channels.repository'
 import { CreateMessageDto } from './dto/create-message.dto'
 import { UpdateMessageDto } from './dto/update-message.dto'
 import { GetMessagesDto } from './dto/get-messages.dto'
@@ -12,6 +13,7 @@ export class MessagesService {
   constructor(
     private readonly messagesRepository: MessagesRepository,
     private readonly workspacesRepository: WorkspacesRepository,
+    private readonly channelsRepository: ChannelsRepository,
   ) {}
 
   async getMessages(channelId: string, userId: string, dto: GetMessagesDto) {
@@ -40,19 +42,18 @@ export class MessagesService {
     }
   }
 
-  async updateMessage(
-    messageId: string,
-    userId: string,
-    workspaceId: string,
-    dto: UpdateMessageDto,
-  ) {
+  async updateMessage(messageId: string, channelId: string, userId: string, dto: UpdateMessageDto) {
     const message = await this.messagesRepository.findById(messageId)
-    if (!message) {
+    if (!message || message.channelId !== channelId) {
       throw new HttpException('メッセージが見つかりません', HttpStatus.NOT_FOUND)
     }
 
     const isAuthor = message.userId === userId
-    const isOwner = await this.workspacesRepository.isOwner(userId, workspaceId)
+    // isOwner はメッセージが実際に属するワークスペースで確認する
+    const channel = await this.channelsRepository.findById(channelId)
+    const isOwner = channel
+      ? await this.workspacesRepository.isOwner(userId, channel.workspaceId)
+      : false
 
     if (!isAuthor && !isOwner) {
       throw new HttpException('このメッセージを編集する権限がありません', HttpStatus.FORBIDDEN)
@@ -65,14 +66,17 @@ export class MessagesService {
     }
   }
 
-  async deleteMessage(messageId: string, userId: string, workspaceId: string) {
+  async deleteMessage(messageId: string, channelId: string, userId: string) {
     const message = await this.messagesRepository.findById(messageId)
-    if (!message) {
+    if (!message || message.channelId !== channelId) {
       throw new HttpException('メッセージが見つかりません', HttpStatus.NOT_FOUND)
     }
 
     const isAuthor = message.userId === userId
-    const isOwner = await this.workspacesRepository.isOwner(userId, workspaceId)
+    const channel = await this.channelsRepository.findById(channelId)
+    const isOwner = channel
+      ? await this.workspacesRepository.isOwner(userId, channel.workspaceId)
+      : false
 
     if (!isAuthor && !isOwner) {
       throw new HttpException('このメッセージを削除する権限がありません', HttpStatus.FORBIDDEN)

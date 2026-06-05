@@ -11,15 +11,16 @@ export class ChannelsService {
     return this.channelsRepository.findAccessibleChannels(workspaceId, userId)
   }
 
-  async getChannel(channelId: string) {
+  async getChannel(channelId: string, workspaceId: string) {
     const channel = await this.channelsRepository.findById(channelId)
-    if (!channel) {
+    if (!channel || channel.workspaceId !== workspaceId) {
       throw new HttpException('チャンネルが見つかりません', HttpStatus.NOT_FOUND)
     }
     return channel
   }
 
-  async getMembers(channelId: string) {
+  async getMembers(channelId: string, workspaceId: string) {
+    await this.getChannel(channelId, workspaceId)
     return this.channelsRepository.findMembersByChannelId(channelId)
   }
 
@@ -27,17 +28,17 @@ export class ChannelsService {
     return this.channelsRepository.create(workspaceId, userId, dto)
   }
 
-  async updateChannel(channelId: string, dto: UpdateChannelDto) {
+  async updateChannel(channelId: string, workspaceId: string, dto: UpdateChannelDto) {
     const channel = await this.channelsRepository.findById(channelId)
-    if (!channel) {
+    if (!channel || channel.workspaceId !== workspaceId) {
       throw new HttpException('チャンネルが見つかりません', HttpStatus.NOT_FOUND)
     }
     return this.channelsRepository.update(channelId, dto)
   }
 
-  async deleteChannel(channelId: string) {
+  async deleteChannel(channelId: string, workspaceId: string) {
     const channel = await this.channelsRepository.findById(channelId)
-    if (!channel) {
+    if (!channel || channel.workspaceId !== workspaceId) {
       throw new HttpException('チャンネルが見つかりません', HttpStatus.NOT_FOUND)
     }
     if (channel.isDefault) {
@@ -46,9 +47,9 @@ export class ChannelsService {
     return this.channelsRepository.delete(channelId)
   }
 
-  async joinChannel(channelId: string, userId: string) {
+  async joinChannel(channelId: string, workspaceId: string, userId: string) {
     const channel = await this.channelsRepository.findById(channelId)
-    if (!channel) {
+    if (!channel || channel.workspaceId !== workspaceId) {
       throw new HttpException('チャンネルが見つかりません', HttpStatus.NOT_FOUND)
     }
     if (channel.isPrivate) {
@@ -61,7 +62,8 @@ export class ChannelsService {
     return this.channelsRepository.addMember(userId, channelId)
   }
 
-  async leaveChannel(channelId: string, userId: string) {
+  async leaveChannel(channelId: string, workspaceId: string, userId: string) {
+    await this.getChannel(channelId, workspaceId)
     const isMember = await this.channelsRepository.isMember(userId, channelId)
     if (!isMember) {
       throw new HttpException('チャンネルに参加していません', HttpStatus.NOT_FOUND)
