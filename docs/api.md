@@ -56,15 +56,110 @@ GET /channels/:channelId/messages?cursor={messageId}&limit=50
 
 ### POST /auth/register
 
-> 未実装
+新規ユーザーを登録してJWTトークンを返す。
+
+**Request Body**
+
+```json
+{
+  "username": "john_doe",
+  "displayName": "John Doe",
+  "password": "password123"
+}
+```
+
+| フィールド | 型 | バリデーション |
+|---|---|---|
+| username | string | 3〜20文字、英数字・アンダースコアのみ |
+| displayName | string | 1〜50文字 |
+| password | string | 8文字以上 |
+
+**Response 201**
+
+```json
+{
+  "token": "eyJhbGci...",
+  "user": {
+    "id": "cuid...",
+    "username": "john_doe",
+    "displayName": "John Doe",
+    "avatarUrl": null,
+    "status": "OFFLINE"
+  }
+}
+```
+
+**Errors**
+- `400` バリデーションエラー
+- `409` ユーザー名が既に使用されている
+
+---
 
 ### POST /auth/login
 
-> 未実装
+**Request Body**
+
+```json
+{
+  "username": "john_doe",
+  "password": "password123"
+}
+```
+
+**Response 200**
+
+```json
+{
+  "token": "eyJhbGci...",
+  "user": {
+    "id": "cuid...",
+    "username": "john_doe",
+    "displayName": "John Doe",
+    "avatarUrl": null,
+    "status": "OFFLINE"
+  }
+}
+```
+
+**Errors**
+- `401` ユーザー名またはパスワードが正しくない（存在確認とパスワード不一致を区別しない）
+
+---
 
 ### POST /auth/logout
 
-> 未実装
+認証済みユーザーのログアウト。JWTはステートレスのためサーバー側での処理なし。クライアント側でトークンを削除する。
+
+**Headers** `Authorization: Bearer {token}` 必須
+
+**Response 200**
+
+```json
+{ "message": "ログアウトしました" }
+```
+
+---
+
+### GET /auth/me
+
+現在の認証済みユーザー情報を返す。トークンのペイロードを直接返さずDBから最新情報を取得する。
+
+**Headers** `Authorization: Bearer {token}` 必須
+
+**Response 200**
+
+```json
+{
+  "id": "cuid...",
+  "username": "john_doe",
+  "displayName": "John Doe",
+  "avatarUrl": null,
+  "status": "OFFLINE",
+  "statusMessage": null,
+  "createdAt": "2026-06-05T00:00:00.000Z",
+  "updatedAt": "2026-06-05T00:00:00.000Z"
+}
+```
 
 ---
 
@@ -72,7 +167,7 @@ GET /channels/:channelId/messages?cursor={messageId}&limit=50
 
 ### GET /users/me
 
-> 未実装
+> 未実装（GET /auth/me で代替）
 
 ### PATCH /users/me
 
