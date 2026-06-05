@@ -5,9 +5,10 @@ import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './auth/auth.module'
 import { WorkspacesModule } from './workspaces/workspaces.module'
 import { ChannelsModule } from './channels/channels.module'
+import { MessagesModule } from './messages/messages.module'
 
 @Module({
-  imports: [PrismaModule, AuthModule, WorkspacesModule, ChannelsModule],
+  imports: [PrismaModule, AuthModule, WorkspacesModule, ChannelsModule, MessagesModule],
   controllers: [AppController],
   providers: [AppService],
 })
