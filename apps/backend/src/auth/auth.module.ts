@@ -9,9 +9,12 @@ import { JwtStrategy } from './strategies/jwt.strategy'
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'dev-secret-key',
-      signOptions: { expiresIn: '7d' },
+    JwtModule.registerAsync({
+      useFactory: () => {
+        const secret = process.env.JWT_SECRET
+        if (!secret) throw new Error('JWT_SECRET is not configured')
+        return { secret, signOptions: { expiresIn: '7d' } }
+      },
     }),
   ],
   controllers: [AuthController],
