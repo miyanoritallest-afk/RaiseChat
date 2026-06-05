@@ -5,7 +5,7 @@ export class CreateWorkspaceDto {
   @IsNotEmpty()
   @MinLength(1)
   @MaxLength(50)
-  name: string
+  name!: string
 
   @IsString()
   @IsOptional()
