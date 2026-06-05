@@ -1,33 +1,32 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useMessageStore } from '@/stores/message.store'
-import { messageApi } from '@/lib/api/message.api'
+import type { Socket } from 'socket.io-client'
+import { useTyping } from '@/hooks/useTyping'
 
 type Props = {
   wsId: string
   channelId: string
   channelName: string
+  socket: Socket
 }
 
-export function MessageInput({ wsId, channelId, channelName }: Props) {
+export function MessageInput({ wsId, channelId, channelName, socket }: Props) {
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { addMessage } = useMessageStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { startTyping, stopTyping } = useTyping(socket, channelId)
 
   const handleSubmit = async () => {
     const trimmed = content.trim()
     if (!trimmed || isSubmitting) return
 
     setIsSubmitting(true)
+    stopTyping()
     try {
-      const message = await messageApi.createMessage(wsId, channelId, { content: trimmed })
-      addMessage(message)
+      socket.emit('message:send', { channelId, content: trimmed })
       setContent('')
       textareaRef.current?.focus()
-    } catch {
-      // ignore
     } finally {
       setIsSubmitting(false)
     }
@@ -46,8 +45,12 @@ export function MessageInput({ wsId, channelId, channelName }: Props) {
         <textarea
           ref={textareaRef}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value)
+            startTyping()
+          }}
           onKeyDown={handleKeyDown}
+          onBlur={stopTyping}
           placeholder={`#${channelName} にメッセージを送信`}
           rows={1}
           className="flex-1 resize-none text-sm text-gray-900 placeholder-gray-400 focus:outline-none max-h-40"
