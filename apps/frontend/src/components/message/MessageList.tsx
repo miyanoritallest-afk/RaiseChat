@@ -15,6 +15,8 @@ export function MessageList({ wsId, channelId }: Props) {
   const { loadMore } = useMessages(wsId, channelId)
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevChannelRef = useRef<string | null>(null)
+  // 新着メッセージのIDを追跡（配列先頭 = 最新）
+  const newestMessageId = messages[0]?.id
 
   useEffect(() => {
     if (prevChannelRef.current !== channelId) {
@@ -23,9 +25,12 @@ export function MessageList({ wsId, channelId }: Props) {
     }
   }, [channelId])
 
+  // newestMessageId が変わった = 新着メッセージ追加時のみ下スクロール
+  // loadMore による過去メッセージ追加では先頭IDは変わらないためスクロールしない
   useEffect(() => {
+    if (!newestMessageId) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+  }, [newestMessageId])
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (e.currentTarget.scrollTop === 0 && hasMore && !isLoading) {
