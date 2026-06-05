@@ -46,21 +46,21 @@ export class MessagesController {
 
   @Patch(':messageId')
   async updateMessage(
-    @Param('wsId') wsId: string,
+    @Param('channelId') channelId: string,
     @Param('messageId') messageId: string,
     @CurrentUser() user: JwtUser,
     @Body() dto: UpdateMessageDto,
   ) {
-    return this.messagesService.updateMessage(messageId, user.id, wsId, dto)
+    return this.messagesService.updateMessage(messageId, channelId, user.id, dto)
   }
 
   @Delete(':messageId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteMessage(
-    @Param('wsId') wsId: string,
+    @Param('channelId') channelId: string,
     @Param('messageId') messageId: string,
     @CurrentUser() user: JwtUser,
   ) {
-    return this.messagesService.deleteMessage(messageId, user.id, wsId)
+    return this.messagesService.deleteMessage(messageId, channelId, user.id)
   }
 }
