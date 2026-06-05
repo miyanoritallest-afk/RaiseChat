@@ -11,8 +11,7 @@ export default function RootPage() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        // フェーズ2以降: router.push('/workspaces') に変更する
-        router.push('/login')
+        router.push('/workspaces')
       } else {
         router.push('/login')
       }
