@@ -1,0 +1,24 @@
+{
+  "name": "raise-chat",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0",
+    "prisma": "^6.19.3"
+  },
+  "lint-staged": {
+    "apps/backend/src/**/*.ts": [
+      "npx prettier --write"
+    ],
+    "apps/frontend/src/**/*.{ts,tsx}": [
+      "npx prettier --write"
+    ]
+  }
+}
