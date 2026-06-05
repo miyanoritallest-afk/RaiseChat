@@ -528,3 +528,87 @@ Error: Could not resolve @prisma/client.
 - `?` をつけてオプショナルにするとバリデーションの意図が変わってしまうため `!` が適切
 
 ---
+
+## 2026-06-05 フェーズ2：Claudeレビューで発見・修正したバグ
+
+### 33. チャンネル操作のIDOR脆弱性（PR #9 レビュー指摘）
+
+**状況**：Claude Code Review が `GET/PATCH/DELETE /workspaces/:wsId/channels/:channelId` 系エンドポイントで IDOR（Insecure Direct Object Reference）脆弱性を指摘した。
+
+**問題の詳細**：
+- `WorkspaceMemberGuard` はユーザーが `:wsId` のメンバーかどうかしか確認しない
+- Service 層の `getChannel(channelId)` / `deleteChannel(channelId)` は `channelId` のみで検索しており、そのチャンネルが `:wsId` に属するかを誰も検証していなかった
+- 結果として「ワークスペースAのオーナーが、ワークスペースBのチャンネルIDを知っていれば削除できる」という攻撃が成立していた
+
+**修正**：Service 層の全メソッドに `workspaceId` 引数を追加し、`channel.workspaceId !== workspaceId` の場合に 404 を返す検証を追加した。
+
+**404 を返す理由**（403 ではなく）：
+- 403 だと「そのチャンネルIDが存在するが権限がない」という情報が攻撃者に漏れる
+- 404 にすることで他ワークスペースのチャンネルIDの存在自体を隠蔽できる
+
+**教訓**：URLの階層構造（`/workspaces/:wsId/channels/:channelId`）は、子リソースが親リソースに属することを**自動的には保証しない**。Service 層で明示的に親子関係を検証する必要がある。
+
+---
+
+### 34. メッセージ操作のIDOR脆弱性（PR #10 レビュー指摘）
+
+**状況**：Claude Code Review が `PATCH/DELETE /workspaces/:wsId/channels/:channelId/messages/:messageId` で同様の IDOR 脆弱性を指摘した。さらに `isOwner` チェックに URL の `:wsId`（攻撃者が制御できる値）を使っていることも問題だと指摘された。
+
+**問題の詳細**：
+- `findById(messageId)` は `channelId` のスコープなしに取得できていた
+- `isOwner(userId, wsId)` の `wsId` は URL から来る値。攻撃者が自分のワークスペースを作成してオーナーになれば、`isOwner` が `true` を返し他ワークスペースのメッセージを編集・削除できた
+
+**修正**：
+- `message.channelId !== channelId` の場合に 404 を返す検証を追加
+- `isOwner` チェックはメッセージが実際に属するチャンネルの `workspaceId` を取得して使うよう変更
+- Controller から `wsId` ではなく `channelId` を渡すよう修正（チャンネルからワークスペースを辿る）
+
+**設計の学び**：権限チェックに使う ID は「URL パラメータ（攻撃者が操作できる）」ではなく「DB から取得したリソースの実際の親 ID」を使う必要がある。
+
+---
+
+### 35. 過去メッセージ読み込み時にスクロールが最下部に飛ぶバグ（PR #10 レビュー指摘）
+
+**状況**：Claude Code Review が `MessageList.tsx` の `useEffect` が `messages.length` を依存配列にしていることで、`loadMore()` による過去メッセージ追加でも最下部スクロールが発火すると指摘した。
+
+**問題の詳細**：
+- 上スクロールで過去メッセージを読み込む → `messages.length` が増える → `useEffect` が発火 → 最下部にスクロール → ユーザーが読もうとした過去メッセージが見えなくなる
+
+**修正**：`messages[0]?.id`（配列先頭 = 最新メッセージの ID）を依存配列に変更した。
+
+**理由**：
+- 新着メッセージが追加されると配列先頭の ID が変わる → スクロール発火（正しい挙動）
+- `loadMore()` は過去メッセージを配列末尾に追加するため配列先頭の ID は変わらない → スクロールしない（正しい挙動）
+- `messages.length` より意味が明確で、新着か過去かを正確に区別できる
+
+---
+
+### 36. gateway.service の isOwner に channelId を渡していたバグ（PR #11 レビュー指摘）
+
+**状況**：Claude Code Review が `gateway.service.ts` の `updateMessage` で `workspacesRepository.isOwner(data.userId, message.channelId)` と誤って channel ID を workspace ID 引数に渡していることを指摘した。
+
+**問題の詳細**：
+- `Channel.id` と `Workspace.id` はそれぞれ独立した CUID（`cuid()` で生成）で絶対に一致しない
+- `WorkspaceMember` テーブルに `{ userId, workspaceId: channelId }` のレコードが存在するはずがないため `isOwner` は常に `false` を返していた
+- 結果として「WS オーナーが Socket.io 経由で他ユーザーのメッセージを編集しようとすると常に拒否される」というバグが発生していた
+
+**修正**：`prisma.channel.findUnique` で `workspaceId` を取得してから `isOwner` に渡すよう修正した。
+
+**教訓**：ID の型が同じ `string` だとコンパイルエラーが出ず、誤った ID を渡してもビルドが通ってしまう。引数の型に `WorkspaceId` / `ChannelId` のような branded type を使うと防げるが、今回は明示的なコメントと変数名で対処した。
+
+---
+
+### 37. ワークフローファイル変更を含む PR で Claude Review が動かない問題（PR #12）
+
+**状況**：PR #12 に `.github/workflows/claude-code-review.yml` の変更（`pull-requests: read → write`）が含まれていたため、Claude Code Action が以下のエラーで動作しなかった。
+
+```
+Workflow validation failed. The workflow file must exist and have identical content 
+to the version on the repository's default branch.
+```
+
+**理由**：GitHub は PR に含まれるワークフローファイルの変更をセキュリティ上の理由でブロックする。ワークフローの変更は `main` にマージされて初めて有効になる。
+
+**対処**：PR #12 はコードの問題がないことを確認の上そのままマージした。マージ後は `main` のワークフローが更新され、以降の PR で Claude Review が正常に動作するようになる。
+
+---
