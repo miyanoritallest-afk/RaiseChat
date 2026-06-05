@@ -1,13 +1,11 @@
 # 開発環境セットアップガイド
 
-> このドキュメントはフェーズ1（開発環境構築）完了後に詳細を追記する。
-
 ---
 
 ## 前提条件
 
 - Docker Desktop インストール済み
-- Node.js 20以上 インストール済み
+- Node.js 20 以上 インストール済み
 - AWS アカウント（ファイルアップロード機能を使う場合のみ）
 
 ---
@@ -27,9 +25,9 @@ cd RaiseChat
 cp .env.example .env
 ```
 
-`.env` を開き、各値を設定する（詳細は下記「環境変数の設定方法」を参照）。
+`.env` を開き、`JWT_SECRET` に任意の文字列を設定する（他の値はデフォルトで動作する）。
 
-### 3. 起動
+### 3. コンテナを起動
 
 ```bash
 docker-compose up
@@ -38,47 +36,73 @@ docker-compose up
 | サービス | URL |
 |---|---|
 | フロントエンド | http://localhost:3000 |
-| バックエンドAPI | http://localhost:4000 |
+| バックエンド API | http://localhost:4000 |
 | PostgreSQL | localhost:5432 |
 
-### 4. DBマイグレーション
+### 4. DBマイグレーション（初回のみ）
 
-> 初回起動時のみ実行する。
+コンテナ起動後、別ターミナルで実行する。
 
 ```bash
-# （コンテナ起動後に別ターミナルで実行）
-docker-compose exec backend npx prisma migrate dev
+docker-compose exec backend npm run prisma:migrate
+```
+
+マイグレーション名を聞かれたら `init` と入力する。
+
+### 5. 動作確認
+
+```bash
+# ヘルスチェック
+curl http://localhost:4000
+# → {"status":"ok"}
 ```
 
 ---
 
-## 環境変数の設定方法
+## 環境変数の説明
 
-> 詳細は実装フェーズ完了後に追記予定。
+| 変数名 | 説明 | デフォルト値 |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL 接続文字列 | `postgresql://postgres:postgres@db:5432/raisechat` |
+| `JWT_SECRET` | JWT 署名用シークレット | 要設定 |
+| `PORT` | バックエンドポート | `4000` |
+| `NEXT_PUBLIC_API_URL` | フロントエンドからの API URL | `http://localhost:4000` |
+
+---
+
+## ローカル開発（Docker を使わない場合）
+
+PostgreSQL をローカルで起動し、`.env` の `DATABASE_URL` をローカルの接続文字列に変更する。
 
 ```bash
-# DB接続（docker-composeで自動設定されるため変更不要）
-DATABASE_URL="postgresql://user:password@db:5432/raisechat"
+# backend
+cd apps/backend
+npm install
+npm run prisma:generate
+npm run start:dev
 
-# JWT署名に使うシークレットキー（任意の文字列を設定）
-JWT_SECRET=""
-
-# AWS S3（ファイルアップロード機能を使う場合のみ設定）
-AWS_ACCESS_KEY_ID=""
-AWS_SECRET_ACCESS_KEY=""
-AWS_S3_BUCKET_NAME=""
-AWS_REGION=""
+# frontend（別ターミナル）
+cd apps/frontend
+npm install
+npm run dev
 ```
 
 ---
 
-## AWS S3セットアップ（オプション）
+## AWS S3 セットアップ（フェーズ4 以降）
 
-> ファイルアップロード機能を使わない場合はスキップ可。
-> 詳細は実装フェーズ完了後に追記予定。
+> ファイルアップロード機能を使わない場合はスキップ可。フェーズ4完了後に詳細を追記予定。
 
 ---
 
 ## トラブルシューティング
 
-> 実装フェーズで発生した問題と解決策を随時追記予定。
+### `docker-compose up` でコンテナが起動しない
+
+- Docker Desktop が起動しているか確認する
+- `docker-compose down -v` でボリュームを削除して再起動する
+
+### `prisma migrate dev` でエラーが出る
+
+- db コンテナが `healthy` 状態になるまで待ってから実行する
+- `DATABASE_URL` が正しく設定されているか確認する
