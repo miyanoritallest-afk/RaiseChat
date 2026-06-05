@@ -43,38 +43,50 @@ export class ChannelsController {
 
   @Get(':channelId')
   @UseGuards(ChannelMemberGuard)
-  async getChannel(@Param('channelId') channelId: string) {
-    return this.channelsService.getChannel(channelId)
+  async getChannel(@Param('wsId') wsId: string, @Param('channelId') channelId: string) {
+    return this.channelsService.getChannel(channelId, wsId)
   }
 
   @Get(':channelId/members')
   @UseGuards(ChannelMemberGuard)
-  async getMembers(@Param('channelId') channelId: string) {
-    return this.channelsService.getMembers(channelId)
+  async getMembers(@Param('wsId') wsId: string, @Param('channelId') channelId: string) {
+    return this.channelsService.getMembers(channelId, wsId)
   }
 
   @Patch(':channelId')
   @UseGuards(WorkspaceOwnerGuard)
-  async updateChannel(@Param('channelId') channelId: string, @Body() dto: UpdateChannelDto) {
-    return this.channelsService.updateChannel(channelId, dto)
+  async updateChannel(
+    @Param('wsId') wsId: string,
+    @Param('channelId') channelId: string,
+    @Body() dto: UpdateChannelDto,
+  ) {
+    return this.channelsService.updateChannel(channelId, wsId, dto)
   }
 
   @Delete(':channelId')
   @UseGuards(WorkspaceOwnerGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteChannel(@Param('channelId') channelId: string) {
-    return this.channelsService.deleteChannel(channelId)
+  async deleteChannel(@Param('wsId') wsId: string, @Param('channelId') channelId: string) {
+    return this.channelsService.deleteChannel(channelId, wsId)
   }
 
   @Post(':channelId/join')
   @HttpCode(HttpStatus.OK)
-  async joinChannel(@Param('channelId') channelId: string, @CurrentUser() user: JwtUser) {
-    return this.channelsService.joinChannel(channelId, user.id)
+  async joinChannel(
+    @Param('wsId') wsId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.channelsService.joinChannel(channelId, wsId, user.id)
   }
 
   @Delete(':channelId/leave')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async leaveChannel(@Param('channelId') channelId: string, @CurrentUser() user: JwtUser) {
-    return this.channelsService.leaveChannel(channelId, user.id)
+  async leaveChannel(
+    @Param('wsId') wsId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.channelsService.leaveChannel(channelId, wsId, user.id)
   }
 }
