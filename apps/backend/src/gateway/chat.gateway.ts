@@ -30,7 +30,7 @@ type AuthenticatedSocket = Socket & { userId: string; username: string }
 @UseFilters(WsExceptionFilter)
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server
+  server!: Server
 
   constructor(
     private readonly jwtService: JwtService,

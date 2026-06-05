@@ -5,5 +5,5 @@ export class UpdateMessageDto {
   @IsNotEmpty()
   @MinLength(1)
   @MaxLength(2000)
-  content: string
+  content!: string
 }

@@ -16,7 +16,7 @@ export class CreateChannelDto {
   @Matches(/^[a-z0-9_-]+$/, {
     message: 'チャンネル名は英小文字・数字・ハイフン・アンダースコアのみ使用できます',
   })
-  name: string
+  name!: string
 
   @IsBoolean()
   @IsOptional()

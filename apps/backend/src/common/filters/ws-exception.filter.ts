@@ -14,7 +14,8 @@ export class WsExceptionFilter implements ExceptionFilter {
     let code = 'INTERNAL_ERROR'
 
     if (exception instanceof WsException) {
-      message = exception.getMessage() as string
+      const msg = exception.message
+      message = typeof msg === 'string' ? msg : JSON.stringify(msg)
       code = 'WS_ERROR'
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       if (exception.code === 'P2002') {
