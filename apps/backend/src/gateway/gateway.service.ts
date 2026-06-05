@@ -67,8 +67,12 @@ export class GatewayService {
 
     const isAuthor = message.userId === data.userId
     if (!isAuthor) {
-      const isOwner = message.channelId
-        ? await this.workspacesRepository.isOwner(data.userId, message.channelId)
+      const channel = await this.prisma.channel.findUnique({
+        where: { id: message.channelId },
+        select: { workspaceId: true },
+      })
+      const isOwner = channel
+        ? await this.workspacesRepository.isOwner(data.userId, channel.workspaceId)
         : false
       if (!isOwner) return null
     }
