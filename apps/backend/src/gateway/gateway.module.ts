@@ -4,6 +4,8 @@ import { ChatGateway } from './chat.gateway'
 import { GatewayService } from './gateway.service'
 import { MessagesModule } from '../messages/messages.module'
 import { WorkspacesModule } from '../workspaces/workspaces.module'
+import { DmRoomsModule } from '../dm-rooms/dm-rooms.module'
+import { NotificationsModule } from '../notifications/notifications.module'
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { WorkspacesModule } from '../workspaces/workspaces.module'
     }),
     MessagesModule,
     WorkspacesModule,
+    DmRoomsModule,
+    NotificationsModule,
   ],
   providers: [ChatGateway, GatewayService],
 })

@@ -6,9 +6,13 @@ import Link from 'next/link'
 import { useAuthStore } from '@/stores/auth.store'
 import { useWorkspaceStore } from '@/stores/workspace.store'
 import { useChannelStore } from '@/stores/channel.store'
+import { useDmStore } from '@/stores/dm.store'
 import { workspaceApi } from '@/lib/api/workspace.api'
 import { channelApi } from '@/lib/api/channel.api'
+import { dmApi } from '@/lib/api/dm.api'
 import { Sidebar } from './Sidebar'
+import { NotificationBell } from '@/components/notification/NotificationBell'
+import { useNotificationSocket } from '@/hooks/useNotificationSocket'
 
 type Props = {
   workspaceId: string
@@ -20,6 +24,10 @@ export function AppLayout({ workspaceId, children }: Props) {
   const { user, isLoading: authLoading } = useAuthStore()
   const { workspaces, currentWorkspace, setWorkspaces, setCurrentWorkspace } = useWorkspaceStore()
   const { setChannels } = useChannelStore()
+  const { setDmRooms } = useDmStore()
+
+  // アプリ全体で1回だけ通知 Socket を購読する
+  useNotificationSocket()
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -48,7 +56,12 @@ export function AppLayout({ workspaceId, children }: Props) {
       .getChannels(workspaceId)
       .then(setChannels)
       .catch(() => {})
-  }, [user, workspaceId, setCurrentWorkspace, setChannels, router])
+
+    dmApi
+      .getDmRooms(workspaceId)
+      .then(setDmRooms)
+      .catch(() => {})
+  }, [user, workspaceId, setCurrentWorkspace, setChannels, setDmRooms, router])
 
   if (authLoading) {
     return (
@@ -87,8 +100,9 @@ export function AppLayout({ workspaceId, children }: Props) {
 
       {/* サイドバー */}
       <div className="w-60 flex flex-col">
-        <div className="px-4 py-3 bg-gray-800 border-b border-gray-700">
+        <div className="px-4 py-3 bg-gray-800 border-b border-gray-700 flex items-center justify-between">
           <span className="text-white font-semibold truncate">{currentWorkspace?.name}</span>
+          <NotificationBell />
         </div>
         <div className="flex-1 overflow-hidden">
           <Sidebar />

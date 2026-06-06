@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { MessagesRepository } from '../messages/messages.repository'
 import { WorkspacesRepository } from '../workspaces/workspaces.repository'
+import { DmRoomsRepository } from '../dm-rooms/dm-rooms.repository'
+import { NotificationsService } from '../notifications/notifications.service'
 
 @Injectable()
 export class GatewayService {
@@ -9,6 +11,8 @@ export class GatewayService {
     private readonly prisma: PrismaService,
     private readonly messagesRepository: MessagesRepository,
     private readonly workspacesRepository: WorkspacesRepository,
+    private readonly dmRoomsRepository: DmRoomsRepository,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
@@ -49,16 +53,57 @@ export class GatewayService {
     })
   }
 
+  async getMessageById(messageId: string) {
+    return this.messagesRepository.findById(messageId)
+  }
+
   async createMessage(data: {
     channelId: string
     userId: string
     content: string
     threadId?: string
   }) {
-    return this.messagesRepository.create(data.channelId, data.userId, {
+    const message = await this.messagesRepository.create(data.channelId, data.userId, {
       content: data.content,
       threadId: data.threadId,
     })
+
+    // fire-and-forget: 通知はメッセージ送信レイテンシに影響させない
+    void this.notificationsService.notifyMentions(
+      data.content,
+      message.id,
+      data.channelId,
+      data.userId,
+    )
+    if (data.threadId) {
+      void this.notificationsService.notifyThreadReply(data.threadId, message.id, data.userId)
+    }
+
+    return message
+  }
+
+  /**
+   * メンション通知のソケット送信先ユーザーIDを返す。
+   * chat.gateway.ts が notification:received を user:X ルームに emit するために使う。
+   */
+  async getMentionTargetUserIds(
+    content: string,
+    channelId: string,
+    senderId: string,
+  ): Promise<string[]> {
+    if (!content.includes('@')) return []
+    const usernameMatches = content.match(/@([a-zA-Z0-9_.-]+)/g)
+    if (!usernameMatches) return []
+    const usernames = usernameMatches.map((m) => m.slice(1))
+    const members = await this.prisma.channelMember.findMany({
+      where: {
+        channelId,
+        user: { username: { in: usernames } },
+        userId: { not: senderId },
+      },
+      select: { userId: true },
+    })
+    return members.map((m) => m.userId)
   }
 
   async updateMessage(data: { messageId: string; userId: string; content: string }) {
@@ -88,5 +133,50 @@ export class GatewayService {
     if (!isAuthor) return null
 
     return this.messagesRepository.softDelete(data.messageId)
+  }
+
+  // --- DM 関連 ---
+
+  /** DM ルームの送信者以外のメンバー ID 一覧を返す（通知送信先の特定に使用） */
+  async getDmRoomMemberIds(dmRoomId: string, excludeUserId: string): Promise<string[]> {
+    const members = await this.prisma.dmRoomMember.findMany({
+      where: { dmRoomId, userId: { not: excludeUserId } },
+      select: { userId: true },
+    })
+    return members.map((m) => m.userId)
+  }
+
+  async isDmRoomMember(userId: string, dmRoomId: string): Promise<boolean> {
+    return this.dmRoomsRepository.isMember(userId, dmRoomId)
+  }
+
+  async createDmMessage(data: { dmRoomId: string; userId: string; content: string }) {
+    const message = await this.dmRoomsRepository.createMessage(data.dmRoomId, data.userId, {
+      content: data.content,
+    })
+
+    // fire-and-forget: DM受信通知
+    void this.notificationsService.notifyDmUnread(data.dmRoomId, data.userId)
+
+    return message
+  }
+
+  async updateDmMessage(data: {
+    messageId: string
+    dmRoomId: string
+    userId: string
+    content: string
+  }) {
+    const message = await this.dmRoomsRepository.findMessageById(data.messageId)
+    if (!message || message.dmRoomId !== data.dmRoomId) return null
+    if (message.userId !== data.userId) return null
+    return this.dmRoomsRepository.updateMessage(data.messageId, data.content)
+  }
+
+  async deleteDmMessage(data: { messageId: string; dmRoomId: string; userId: string }) {
+    const message = await this.dmRoomsRepository.findMessageById(data.messageId)
+    if (!message || message.dmRoomId !== data.dmRoomId) return null
+    if (message.userId !== data.userId) return null
+    return this.dmRoomsRepository.softDeleteMessage(data.messageId)
   }
 }

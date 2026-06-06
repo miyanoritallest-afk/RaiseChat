@@ -34,6 +34,39 @@ export class MessagesService {
     }
   }
 
+  async getReplies(
+    parentMessageId: string,
+    channelId: string,
+    userId: string,
+    dto: GetMessagesDto,
+  ) {
+    // 親メッセージが指定チャンネルに属するか検証（クロスチャンネル IDOR 防止）
+    const parent = await this.messagesRepository.findById(parentMessageId)
+    if (!parent || parent.channelId !== channelId) {
+      throw new HttpException('メッセージが見つかりません', HttpStatus.NOT_FOUND)
+    }
+
+    const limit = dto.limit ?? 50
+    const rows = await this.messagesRepository.findRepliesByMessageId(
+      parentMessageId,
+      dto.cursor,
+      limit,
+    )
+
+    const hasMore = rows.length > limit
+    const replies = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore ? replies[replies.length - 1].id : null
+
+    return {
+      replies: replies.map((msg) => ({
+        ...msg,
+        reactions: this.aggregateReactions(msg.reactions, userId),
+      })),
+      nextCursor,
+      hasMore,
+    }
+  }
+
   async createMessage(channelId: string, userId: string, dto: CreateMessageDto) {
     const message = await this.messagesRepository.create(channelId, userId, dto)
     return {

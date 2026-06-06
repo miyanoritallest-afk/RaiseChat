@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module'
 import { WorkspacesModule } from './workspaces/workspaces.module'
 import { ChannelsModule } from './channels/channels.module'
 import { MessagesModule } from './messages/messages.module'
+import { DmRoomsModule } from './dm-rooms/dm-rooms.module'
+import { NotificationsModule } from './notifications/notifications.module'
 import { GatewayModule } from './gateway/gateway.module'
 
 @Module({
@@ -15,6 +17,8 @@ import { GatewayModule } from './gateway/gateway.module'
     WorkspacesModule,
     ChannelsModule,
     MessagesModule,
+    DmRoomsModule,
+    NotificationsModule,
     GatewayModule,
   ],
   controllers: [AppController],
