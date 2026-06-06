@@ -12,6 +12,7 @@ import { GatewayModule } from './gateway/gateway.module'
 import { ReactionsModule } from './reactions/reactions.module'
 import { PinsModule } from './pins/pins.module'
 import { UploadsModule } from './uploads/uploads.module'
+import { SearchModule } from './search/search.module'
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UploadsModule } from './uploads/uploads.module'
     ReactionsModule,
     PinsModule,
     UploadsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],
