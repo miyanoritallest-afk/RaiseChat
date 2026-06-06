@@ -612,3 +612,195 @@ to the version on the repository's default branch.
 **対処**：PR #12 はコードの問題がないことを確認の上そのままマージした。マージ後は `main` のワークフローが更新され、以降の PR で Claude Review が正常に動作するようになる。
 
 ---
+
+## 2026-06-06 フェーズ3：スレッド返信（PR #15）
+
+### 38. スレッド返信をチャンネルタイムラインに混入させない設計
+
+**判断**：スレッド返信（`threadId` あり）はチャンネルタイムライン（`GET .../messages`）に含めず、専用エンドポイント（`GET .../messages/:id/replies`）からのみ取得できるようにした。
+
+**理由**：
+- Slack と同様に、スレッドの返信は親メッセージのスレッドパネルを開いた時にのみ見える設計が自然なUX
+- タイムラインに返信が混入するとページネーションのカーソル計算がずれ、件数管理が複雑になる
+- `findManyByChannelId` の `where` 条件に `threadId: null` を追加するだけで実現でき、変更コストが低い
+
+**Socket.io の対応**：スレッド返信を受信した際、`message:received` イベントではタイムラインに追加しない（`if (!msg.threadId)`）。代わりに `thread:reply_count_updated` イベントで親メッセージの返信数・最新返信者アバターを更新する。
+
+---
+
+### 39. `MESSAGE_SELECT` に返信カウント・最新返信者を含めた理由
+
+**判断**：`MESSAGE_SELECT` 定数に `_count: { select: { replies: true } }` と `replies: { take: 3, orderBy: { createdAt: 'desc' }, select: { user: ... } }` を追加した。
+
+**理由**：
+- タイムラインのメッセージアイテムに「3件の返信 + 返信者アバター」を表示するためには、メッセージ一覧取得時に返信情報を含める必要がある
+- 表示に必要な最新3件のみ `take: 3` で取得し、全返信を取得するよりもデータ転送量を抑えた
+- `MESSAGE_SELECT` を共有定数にしているため、`create` / `findById` / `findManyByChannelId` の全メソッドで自動的に一貫した形状が返る
+
+---
+
+### 40. スレッドパネルを独立した Zustand ストアで管理した理由
+
+**判断**：スレッドの開閉状態・親メッセージ・返信一覧を `thread.store.ts` として分離した。
+
+**理由**：
+- スレッドパネルはチャンネルページとは独立したライフサイクルを持つ（別チャンネルに移動したらリセット）
+- `useThread` フックで取得・送信ロジックをカプセル化し、ページコンポーネントをシンプルに保てる
+- チャンネルの `message.store` とスレッドの `thread.store` を分けることで、返信追加時に親チャンネルのページネーション状態に影響しない
+
+---
+
+## 2026-06-06 フェーズ3：ダイレクトメッセージ（PR #15）
+
+### 41. 1対1 DM の重複防止に `$transaction` を使った理由
+
+**判断**：`findOrCreateDirectRoom` を `prisma.$transaction` 内で実装した。
+
+**理由**：
+- 2ユーザー間で同時に DM 作成リクエストが来た場合、通常の find → create パターンでは「両方が `find` で未存在を確認 → 両方が `create` を実行」という race condition が発生する
+- `$transaction` 内でも完全な serializable 保証はないが、同一プロセス内の短いトランザクションでは実用上の重複を防げる
+- さらに JS 側で「取得した candidates の中に exactMatch があれば return」という二重チェックを入れ、万一重複が起きても最初のレコードを返すフォールバックを持たせた
+
+---
+
+### 42. DM ルームのアクセス制御に専用 Guard を作成した理由
+
+**判断**：`DmRoomMemberGuard` を独立したクラスとして実装した。
+
+**理由**：
+- DM メッセージの取得・送信・編集・削除はすべて「ルームメンバーであること」を前提とする
+- `@UseGuards(JwtAuthGuard, DmRoomMemberGuard)` をコントローラーレベルに付けるだけで全エンドポイントを保護でき、メソッドごとに重複コードを書かなくて済む
+- `WorkspaceMemberGuard` と同じ設計パターンを踏襲することでコードベースの一貫性を保った
+- Socket.io ハンドラ（`dm:send` 等）でも `gatewayService.isDmRoomMember()` を呼ぶことで WebSocket 経由の IDOR も防止した
+
+---
+
+### 43. DM ルーム表示名を utility 関数として切り出した理由
+
+**判断**：`getDmRoomDisplayName(room, myUserId)` を `lib/dm.ts` に配置した。
+
+**理由**：
+- グループ DM は `room.name` を表示し、1対1 DM は相手の `displayName` を表示するというロジックが複数コンポーネントで必要になる
+- この判定ロジックをコンポーネント内に書くと重複が生じ、将来グループDM名の変更仕様が追加された際に修正漏れが起きる
+- utility 関数にすることでテストしやすく、変更箇所を一元化できる
+
+---
+
+## 2026-06-06 フェーズ3：通知システム（PR #15）
+
+### 44. 通知生成を NotificationsService に集中させた理由
+
+**判断**：メンション通知・スレッド返信通知・DM未読通知の生成ロジックをすべて `NotificationsService` に集約し、各サービスから fire-and-forget で呼び出す設計にした。
+
+**理由**：
+- 通知の生成条件（誰に・何を・いつ）は NotificationsService が知るべきであり、MessagesService や DmRoomsService に書くと責務が混在する
+- `void this.notificationsService.notifyMentions(...)` の fire-and-forget パターンにより、通知生成の失敗がメッセージ送信のレスポンスレイテンシに影響しない
+- 将来的に通知種別が増えた場合も NotificationsService だけを変更すればよい
+
+---
+
+### 45. ユーザー個別 Socket.io ルームで通知を配信した理由
+
+**判断**：接続時に `client.join('user:${userId}')` し、`server.to('user:${userId}').emit('notification:received', ...)` で通知を配信するアーキテクチャを採用した。
+
+**理由**：
+- `channel:{id}` ルームは全チャンネルメンバーへのブロードキャスト用。通知は受信者1人だけに届ける必要があり、チャンネルルームでは他者に漏れる
+- ユーザーIDをルーム名にすることで、マルチタブ・マルチデバイスのセッションすべてに同時に届けられる
+- 将来 Redis Adapter に切り替えても `server.to(room).emit()` のインターフェースは変わらない
+
+---
+
+### 46. 通知の重複防止に `createIfNotExists` パターンを使った理由
+
+**判断**：`prisma.notification.upsert` ではなく `findFirst` + `create` の組み合わせ（`createIfNotExists`）を実装した。
+
+**理由**：
+- `upsert` は `where` 条件に unique インデックスが必要。`(type, userId, messageId)` の複合 unique インデックスを追加する変更は影響範囲が大きい
+- `findFirst` で既存チェックをしてから `create` する方式なら、インデックス変更なしに実装できる
+- `messageId` が null の DM 通知（`dmRoomId` で重複チェック）と messageId あり通知（`messageId` で重複チェック）でロジックを分岐させることで、null 値の衝突（null === null）による誤検知を防いだ
+
+---
+
+### 47. 通知の `dmRoomId` カラムを別途追加した理由
+
+**判断**：DM 通知の識別に既存の `channelId` カラムを使わず、`Notification` モデルに `dmRoomId` カラムを新設した。
+
+**理由**：
+- `channelId` は `Channel` テーブルへの FK 制約があるため、`DmRoom` の ID を格納しようとすると外部キー制約違反でレコード作成が失敗する（実際にこのバグを踏んだ）
+- `dmRoomId` として `DmRoom` への正しい FK を持つカラムを追加することで、データの整合性をDB側で保証できる
+- `schema.prisma` に `dmRoomId String?` と対応する `@relation` を追加し、`prisma db push` でスキーマを反映した
+
+---
+
+### 48. 通知ベルの未読数をサーバーから再取得して同期した理由
+
+**判断**：`notification:received` を受け取った際、楽観的に `incrementUnreadCount()` を呼んだ後、`getNotifications(undefined, 1)` で正確な `unreadCount` を再取得してセットしなおす方式にした。
+
+**理由**：
+- 楽観的更新だけだと、タブを長時間開いていた場合に別デバイスで既読にした通知がカウントされ続ける
+- かといってリアルタイムで全通知リストを再取得するとパケット量が大きい
+- `limit=1` で `unreadCount` フィールドだけを目的にリクエストすることで、最小限のデータで正確な未読数を得られる
+
+---
+
+## 2026-06-06 フェーズ3：Claudeレビューで発見・修正したバグ（PR #15）
+
+### 49. findOrCreateDirectRoom の構造不一致バグ（バグ #1）
+
+**状況**：Claude Code Review が `findOrCreateDirectRoom` の既存ルーム取得パスと新規作成パスで返却オブジェクトの構造が異なることを指摘した。
+
+**問題の詳細**：
+- 既存ルーム取得パスでは `include: { members: { select: { userId: true } } }` を使っていたため `members[].user` が `undefined`
+- 新規作成パスでは `select: DM_ROOM_SELECT` を使っており `members[].user` が正しく返ってくる
+- 結果として「既存 DM ルームを開こうとするとフロントエンドで TypeError が発生する」というバグ
+
+**修正**：既存ルーム取得パスも `select: DM_ROOM_SELECT` に統一し、両パスが同一形状を返すようにした。
+
+**教訓**：2つのコードパスが同じ型を返すと思っている場合でも、`select` と `include` の書き方が異なると返却形状が変わる。`SELECT` 定数を共有することで形状の一貫性を強制できる。
+
+---
+
+### 50. useSocket の無限再接続ループバグ（バグ #2）
+
+**状況**：Claude Code Review が `useSocket.ts` の `useEffect` 依存配列に `messages` が含まれることで、メッセージ受信のたびに Socket.io のルーム再参加が起きると指摘した。
+
+**問題の詳細**：
+- `messages` が依存配列にある → メッセージ受信で `addMessage` が呼ばれる → `messages` 配列の参照が変わる → `useEffect` が再実行される → `workspace:join` / `channel:join` が再 emit される
+- 再参加のたびにイベントリスナーが二重登録され、同じメッセージが複数回表示されることもあった
+
+**修正**：`onThreadReplyCountUpdated` ハンドラ内で `useMessageStore.getState()` を使って最新状態を参照するようにし、`messages` / `setMessages` / `nextCursor` / `hasMore` を依存配列から取り除いた。
+
+**設計の学び**：Zustand の `getState()` は useEffect のクロージャ問題を回避するための重要なパターン。「useEffect 内で Zustand ストアの値が必要だが、依存配列に入れると無限ループになる」場合は `getState()` で解決できる。
+
+---
+
+### 51. getReplies の IDOR 脆弱性（バグ #3）
+
+**状況**：Claude Code Review が `GET .../channels/:channelId/messages/:messageId/replies` に IDOR 脆弱性があると指摘した。
+
+**問題の詳細**：
+- `messageId` が実際に `:channelId` に属するかを検証していなかった
+- 攻撃者がチャンネルAのメンバーとして、チャンネルBのメッセージIDを `:messageId` に指定すると、チャンネルBのスレッド返信が取得できた
+
+**修正**：`messagesService.getReplies` の先頭に `findById(parentMessageId)` → `parent.channelId !== channelId` のチェックを追加し、不一致の場合 404 を返すようにした。
+
+**教訓**：URLの `:channelId` と `:messageId` の親子関係は DB で検証しなければならない。フェーズ2のチャンネル・メッセージ IDOR と同じパターン。リソースを操作する前に必ずリソースが URL で示された親に属することを確認する。
+
+---
+
+### 52. DM 通知の重複防止ロジックが動作していなかったバグ（バグ #4）
+
+**状況**：Claude Code Review が DM 通知の重複防止に `channelId` フィールドを使っていることを指摘した（DmRoom ID は Channel FK の制約に違反する）。
+
+**問題の詳細**（2段階で発生）：
+- 第1段階：`notifyDmUnread` が `dmRoomId` を `channelId` フィールドに格納しようとした → `Channel` FK 制約違反で `prisma.notification.create` が毎回エラー → 通知レコードが一切作成されていなかった
+- 第2段階：スキーマに `dmRoomId` カラムを追加して `prisma generate` を実行したが、`apps/backend/node_modules/.prisma/client` に古いキャッシュが残っており TypeScript は古い型を参照し続けた
+
+**修正**：
+1. `prisma/schema.prisma` に `Notification.dmRoomId String?` カラムと `DmRoom` への `@relation` を追加
+2. `apps/backend/node_modules/.prisma` と `apps/backend/node_modules/@prisma/client` を削除してキャッシュをクリア
+3. ルートで `prisma generate` を再実行し、バックエンドが正しい Prisma Client を参照するようにした
+
+**教訓**：monorepo で Prisma を使う場合、`generate` の出力先（ルートの `node_modules`）とサービスが参照する `node_modules` が異なる場合がある。スキーマ変更後に型エラーがない場合でも、サブパッケージに古いキャッシュが残っている可能性を疑う。
+
+---
