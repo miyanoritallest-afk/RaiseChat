@@ -201,8 +201,9 @@ model DmRoom {
   updatedAt DateTime @updatedAt
 
   // リレーション
-  members  DmRoomMember[]
-  messages DmMessage[]
+  members       DmRoomMember[]
+  messages      DmMessage[]
+  notifications Notification[]
 }
 
 model DmRoomMember {
@@ -259,6 +260,7 @@ model Notification {
   type        NotificationType
   messageId   String?
   channelId   String?
+  dmRoomId    String?
   workspaceId String?
   isRead      Boolean          @default(false)
   createdAt   DateTime         @default(now())
@@ -268,6 +270,7 @@ model Notification {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   Message?   @relation(fields: [messageId], references: [id], onDelete: SetNull)
   channel   Channel?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  dmRoom    DmRoom?    @relation(fields: [dmRoomId], references: [id], onDelete: SetNull)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 

@@ -9,8 +9,10 @@ const NOTIFICATION_SELECT = {
   createdAt: true,
   messageId: true,
   channelId: true,
+  dmRoomId: true,
   workspaceId: true,
   channel: { select: { id: true, name: true } },
+  dmRoom: { select: { id: true, name: true } },
   workspace: { select: { id: true, name: true } },
   message: {
     select: {
@@ -57,8 +59,7 @@ export class NotificationsRepository {
    * 重複通知を防ぐため既存レコードがあれば作成しない。
    * - messageId あり: (type, userId, messageId) で重複チェック
    * - dmRoomId あり : (type, userId, dmRoomId) で重複チェック。
-   *   DmMessage は Message テーブルとは別のため channelId フィールドに dmRoomId を格納して管理する。
-   *   1 DM部屋につき 1 UNREAD 通知/ユーザーとして扱う。
+   *   1 DM部屋につき 1 UNREAD 通知/ユーザーとして管理する。
    * upsert は使わず findFirst + create にすることで null 混在ケースも安全に処理する。
    */
   async createIfNotExists(data: {
@@ -66,8 +67,8 @@ export class NotificationsRepository {
     userId: string
     messageId?: string
     channelId?: string
-    workspaceId?: string
     dmRoomId?: string
+    workspaceId?: string
   }) {
     if (data.messageId) {
       const existing = await this.prisma.notification.findFirst({
@@ -77,7 +78,7 @@ export class NotificationsRepository {
       if (existing) return existing
     } else if (data.dmRoomId) {
       const existing = await this.prisma.notification.findFirst({
-        where: { type: data.type, userId: data.userId, channelId: data.dmRoomId },
+        where: { type: data.type, userId: data.userId, dmRoomId: data.dmRoomId },
         select: { id: true },
       })
       if (existing) return existing
@@ -88,8 +89,8 @@ export class NotificationsRepository {
         type: data.type,
         userId: data.userId,
         messageId: data.messageId,
-        // dmRoomId は channelId フィールドに格納（DB スキーマ変更なし）
-        channelId: data.dmRoomId ?? data.channelId,
+        channelId: data.channelId,
+        dmRoomId: data.dmRoomId,
         workspaceId: data.workspaceId,
       },
       select: { id: true },
