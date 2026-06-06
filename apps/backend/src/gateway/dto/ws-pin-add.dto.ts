@@ -8,8 +8,4 @@ export class WsPinAddDto {
   @IsString()
   @IsNotEmpty()
   messageId!: string
-
-  @IsString()
-  @IsNotEmpty()
-  workspaceId!: string
 }

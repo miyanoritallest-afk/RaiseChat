@@ -47,7 +47,7 @@ export function PinToggleButton() {
 /** 右サイドパネル本体 */
 export function PinnedMessagesPanel({ wsId, channelId }: Props) {
   const { pins, setPins, isPanelOpen, togglePanel } = usePinStore()
-  const { unpin } = usePins(wsId, channelId)
+  const { unpin } = usePins(channelId)
 
   useEffect(() => {
     if (!isPanelOpen) return

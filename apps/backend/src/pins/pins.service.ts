@@ -30,20 +30,20 @@ export class PinsService {
     return this.pinsRepository.create(messageId, channelId, userId)
   }
 
-  async removePin(messageId: string, channelId: string, userId: string, workspaceId: string) {
+  async removePin(messageId: string, channelId: string, userId: string) {
     const pin = await this.pinsRepository.findByMessageAndChannel(messageId, channelId)
     if (!pin) {
       throw new HttpException('ピン留めが見つかりません', HttpStatus.NOT_FOUND)
     }
 
-    // Layer2 IDOR: ピンが指定チャンネルに属するかクロスチェック（findByMessageAndChannelで保証済みだが明示）
-    if (pin.channelId !== channelId) {
-      throw new HttpException('ピン留めが見つかりません', HttpStatus.NOT_FOUND)
-    }
-
     // 権限: ピン追加者 または ワークスペースオーナーのみ削除可
+    // workspaceId は呼び出し元から受け取らず、チャンネルから取得してIDOR を防ぐ
     const isPinner = pin.userId === userId
     if (!isPinner) {
+      const workspaceId = await this.pinsRepository.getChannelWorkspaceId(channelId)
+      if (!workspaceId) {
+        throw new HttpException('チャンネルが見つかりません', HttpStatus.NOT_FOUND)
+      }
       const isOwner = await this.workspacesRepository.isOwner(userId, workspaceId)
       if (!isOwner) {
         throw new HttpException('このピン留めを削除する権限がありません', HttpStatus.FORBIDDEN)

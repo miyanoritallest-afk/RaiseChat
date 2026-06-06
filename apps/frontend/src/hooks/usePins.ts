@@ -3,21 +3,21 @@
 import { useCallback } from 'react'
 import { getSocket } from '@/lib/socket/socket.client'
 
-export function usePins(workspaceId: string, channelId: string) {
+export function usePins(channelId: string) {
   const pin = useCallback(
     (messageId: string) => {
       const socket = getSocket()
-      socket.emit('pin:add', { channelId, messageId, workspaceId })
+      socket.emit('pin:add', { channelId, messageId })
     },
-    [channelId, workspaceId],
+    [channelId],
   )
 
   const unpin = useCallback(
     (messageId: string) => {
       const socket = getSocket()
-      socket.emit('pin:remove', { channelId, messageId, workspaceId })
+      socket.emit('pin:remove', { channelId, messageId })
     },
-    [channelId, workspaceId],
+    [channelId],
   )
 
   return { pin, unpin }

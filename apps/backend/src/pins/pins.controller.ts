@@ -39,11 +39,10 @@ export class PinsController {
   @Delete(':messageId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async removePin(
-    @Param('wsId') wsId: string,
     @Param('channelId') channelId: string,
     @Param('messageId') messageId: string,
     @CurrentUser() user: JwtUser,
   ) {
-    await this.pinsService.removePin(messageId, channelId, user.id, wsId)
+    await this.pinsService.removePin(messageId, channelId, user.id)
   }
 }

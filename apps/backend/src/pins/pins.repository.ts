@@ -74,4 +74,12 @@ export class PinsRepository {
       select: { id: true, channelId: true },
     })
   }
+
+  async getChannelWorkspaceId(channelId: string): Promise<string | null> {
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { workspaceId: true },
+    })
+    return channel?.workspaceId ?? null
+  }
 }

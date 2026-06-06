@@ -23,7 +23,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
   const { updateMessage, removeMessage } = useMessageStore()
   const { openThread } = useThreadStore()
   const { toggle: toggleReaction } = useReaction(channelId)
-  const { pin, unpin } = usePins(wsId, channelId)
+  const { pin, unpin } = usePins(channelId)
   const pins = usePinStore((s) => s.pins)
   const isPinned = pins.some((p) => p.messageId === message.id)
   const [isEditing, setIsEditing] = useState(false)

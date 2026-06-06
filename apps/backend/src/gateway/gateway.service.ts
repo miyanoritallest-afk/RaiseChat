@@ -190,13 +190,8 @@ export class GatewayService {
     return this.pinsService.addPin(data.messageId, data.channelId, data.userId)
   }
 
-  async removePin(data: {
-    messageId: string
-    channelId: string
-    userId: string
-    workspaceId: string
-  }) {
-    return this.pinsService.removePin(data.messageId, data.channelId, data.userId, data.workspaceId)
+  async removePin(data: { messageId: string; channelId: string; userId: string }) {
+    return this.pinsService.removePin(data.messageId, data.channelId, data.userId)
   }
 
   // --- リアクション ---

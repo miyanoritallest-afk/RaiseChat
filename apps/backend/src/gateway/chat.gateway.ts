@@ -326,7 +326,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       messageId: dto.messageId,
       channelId: dto.channelId,
       userId: client.userId,
-      workspaceId: dto.workspaceId,
     })
 
     this.server
