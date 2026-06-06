@@ -132,4 +132,23 @@ export class NotificationsService {
       workspaceId,
     })
   }
+
+  /**
+   * リアクション追加時にメッセージ投稿者へ REACTION_ADDED 通知を生成する。
+   * 自分自身のメッセージへのリアクションは通知しない。
+   */
+  async notifyReactionAdded(messageId: string, reactorUserId: string): Promise<void> {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { userId: true, channelId: true },
+    })
+    if (!message || message.userId === reactorUserId) return
+
+    await this.notificationsRepository.createIfNotExists({
+      type: NotificationType.REACTION_ADDED,
+      userId: message.userId,
+      messageId,
+      channelId: message.channelId,
+    })
+  }
 }

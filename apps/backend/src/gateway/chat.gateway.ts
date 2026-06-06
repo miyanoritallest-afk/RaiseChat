@@ -22,6 +22,7 @@ import { WsDmJoinDto } from './dto/ws-dm-join.dto'
 import { WsDmMessageSendDto } from './dto/ws-dm-message-send.dto'
 import { WsDmMessageEditDto } from './dto/ws-dm-message-edit.dto'
 import { WsDmMessageDeleteDto } from './dto/ws-dm-message-delete.dto'
+import { WsReactionToggleDto } from './dto/ws-reaction-toggle.dto'
 
 type AuthenticatedSocket = Socket & { userId: string; username: string }
 
@@ -270,6 +271,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       messageId: result.id,
       dmRoomId: result.dmRoomId,
     })
+  }
+
+  @SubscribeMessage('reaction:toggle')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handleReactionToggle(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsReactionToggleDto,
+  ) {
+    const isMember = await this.gatewayService.isChannelMember(client.userId, dto.channelId)
+    if (!isMember) throw new WsException('このチャンネルへのアクセス権限がありません')
+
+    const result = await this.gatewayService.toggleReaction({
+      messageId: dto.messageId,
+      channelId: dto.channelId,
+      userId: client.userId,
+      emoji: dto.emoji,
+    })
+    if (!result) throw new WsException('メッセージが見つかりません')
+
+    this.server.to(`channel:${dto.channelId}`).emit('reaction:updated', result)
   }
 
   @SubscribeMessage('typing:start')

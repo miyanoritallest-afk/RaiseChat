@@ -4,6 +4,7 @@ import { MessagesRepository } from '../messages/messages.repository'
 import { WorkspacesRepository } from '../workspaces/workspaces.repository'
 import { DmRoomsRepository } from '../dm-rooms/dm-rooms.repository'
 import { NotificationsService } from '../notifications/notifications.service'
+import { ReactionsService } from '../reactions/reactions.service'
 
 @Injectable()
 export class GatewayService {
@@ -13,6 +14,7 @@ export class GatewayService {
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly dmRoomsRepository: DmRoomsRepository,
     private readonly notificationsService: NotificationsService,
+    private readonly reactionsService: ReactionsService,
   ) {}
 
   async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
@@ -178,5 +180,30 @@ export class GatewayService {
     if (!message || message.dmRoomId !== data.dmRoomId) return null
     if (message.userId !== data.userId) return null
     return this.dmRoomsRepository.softDeleteMessage(data.messageId)
+  }
+
+  // --- リアクション ---
+
+  async toggleReaction(data: {
+    messageId: string
+    channelId: string
+    userId: string
+    emoji: string
+  }): Promise<{ messageId: string; reactions: { emoji: string; userIds: string[] }[] } | null> {
+    // チャンネルメンバーシップは Gateway 側で確認済み（isChannelMember）
+    const message = await this.messagesRepository.findById(data.messageId)
+    if (!message || message.channelId !== data.channelId) return null
+
+    const result = await this.reactionsService.toggleReaction(
+      data.messageId,
+      data.channelId,
+      data.userId,
+      data.emoji,
+    )
+
+    // fire-and-forget: リアクション追加通知
+    void this.notificationsService.notifyReactionAdded(data.messageId, data.userId)
+
+    return result
   }
 }
