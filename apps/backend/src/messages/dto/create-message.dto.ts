@@ -5,7 +5,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   MaxLength,
   Min,
   MinLength,
@@ -15,10 +14,11 @@ import { Type } from 'class-transformer'
 import { FileType } from '@prisma/client'
 
 export class AttachmentDto {
+  // S3 キー（例: workspaceId/uuid.ext）を受け取る。URL ではなくキーのみ受け付けることで任意 URL 混入を防ぐ
   @IsString()
   @IsNotEmpty()
-  @IsUrl()
-  fileUrl!: string
+  @MaxLength(512)
+  s3Key!: string
 
   @IsEnum(FileType)
   fileType!: FileType

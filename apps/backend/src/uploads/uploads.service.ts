@@ -2,14 +2,14 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { FileType } from '@prisma/client'
 import { S3Service } from './s3.service'
 
-// 許可 MIME タイプと対応するファイルタイプ・拡張子
-const ALLOWED: Record<string, { fileType: FileType; exts: string[] }> = {
-  'image/jpeg': { fileType: 'IMAGE', exts: ['.jpg', '.jpeg'] },
-  'image/png': { fileType: 'IMAGE', exts: ['.png'] },
-  'image/gif': { fileType: 'IMAGE', exts: ['.gif'] },
-  'image/webp': { fileType: 'IMAGE', exts: ['.webp'] },
-  'video/mp4': { fileType: 'VIDEO', exts: ['.mp4'] },
-  'video/webm': { fileType: 'VIDEO', exts: ['.webm'] },
+// 許可 MIME タイプと対応するファイルタイプ
+const ALLOWED: Record<string, { fileType: FileType }> = {
+  'image/jpeg': { fileType: 'IMAGE' },
+  'image/png': { fileType: 'IMAGE' },
+  'image/gif': { fileType: 'IMAGE' },
+  'image/webp': { fileType: 'IMAGE' },
+  'video/mp4': { fileType: 'VIDEO' },
+  'video/webm': { fileType: 'VIDEO' },
 }
 
 // マジックバイトマップ（MIME 偽装対策）
@@ -26,7 +26,7 @@ const IMAGE_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 const VIDEO_MAX_BYTES = 100 * 1024 * 1024 // 100 MB
 
 export type UploadResult = {
-  fileUrl: string
+  s3Key: string // DB に永続保存するキー（署名なし）
   fileType: FileType
   fileName: string
   fileSize: number
@@ -65,13 +65,11 @@ export class UploadsService {
       )
     }
 
-    const key = await this.s3Service.upload(workspaceId, file.originalname, file.buffer, mime)
+    const s3Key = await this.s3Service.upload(workspaceId, file.originalname, file.buffer, mime)
 
-    // 署名付き URL を生成して返す（S3 バケットは非公開）
-    const fileUrl = await this.s3Service.getSignedUrl(key)
-
+    // s3Key のみ返す。署名付き URL は DB 保存せず、メッセージ取得時に都度生成する
     return {
-      fileUrl,
+      s3Key,
       fileType: allowed.fileType,
       fileName: file.originalname,
       fileSize: file.size,

@@ -17,12 +17,13 @@ export class S3Service {
       throw new Error('AWS_REGION and AWS_S3_BUCKET_NAME must be configured')
     }
     this.bucket = bucket
+    // 環境変数が両方揃っている場合のみ credentials を渡す
+    // 未設定時は credentials キー自体を省略し、IAM ロール等のデフォルトプロバイダチェーンを使用する
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
     this.client = new S3Client({
       region,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
-      },
+      ...(accessKeyId && secretAccessKey ? { credentials: { accessKeyId, secretAccessKey } } : {}),
     })
   }
 

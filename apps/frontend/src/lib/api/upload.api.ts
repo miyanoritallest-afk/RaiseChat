@@ -1,7 +1,7 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 export type UploadResult = {
-  fileUrl: string
+  s3Key: string
   fileType: 'IMAGE' | 'VIDEO'
   fileName: string
   fileSize: number
