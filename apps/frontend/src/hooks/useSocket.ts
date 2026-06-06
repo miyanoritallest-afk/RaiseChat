@@ -15,10 +15,6 @@ export function useSocket(channelId: string, workspaceId: string) {
   const addMessage = useMessageStore((s) => s.addMessage)
   const updateMessage = useMessageStore((s) => s.updateMessage)
   const removeMessage = useMessageStore((s) => s.removeMessage)
-  const messages = useMessageStore((s) => s.messages)
-  const setMessages = useMessageStore((s) => s.setMessages)
-  const nextCursor = useMessageStore((s) => s.nextCursor)
-  const hasMore = useMessageStore((s) => s.hasMore)
   const socketRef = useRef(getSocket())
 
   useEffect(() => {
@@ -36,8 +32,11 @@ export function useSocket(channelId: string, workspaceId: string) {
     const onMessageUpdated = (msg: Message) => updateMessage(msg)
     const onMessageDeleted = ({ messageId }: { messageId: string }) => removeMessage(messageId)
 
-    // スレッド返信があったとき、親メッセージの返信数・返信者を更新
+    // スレッド返信があったとき、親メッセージの返信数・返信者を更新。
+    // getState() で最新状態を参照することで messages を依存配列から除外し、
+    // メッセージ受信のたびに effect が再実行される自己強化ループを防ぐ。
     const onThreadReplyCountUpdated = (payload: ReplyCountUpdatedPayload) => {
+      const { messages, nextCursor, hasMore, setMessages } = useMessageStore.getState()
       const updatedMessages = messages.map((m) => {
         if (m.id !== payload.parentMessageId) return m
         return {
@@ -60,17 +59,7 @@ export function useSocket(channelId: string, workspaceId: string) {
       socket.off('message:deleted', onMessageDeleted)
       socket.off('thread:reply_count_updated', onThreadReplyCountUpdated)
     }
-  }, [
-    channelId,
-    workspaceId,
-    addMessage,
-    updateMessage,
-    removeMessage,
-    messages,
-    setMessages,
-    nextCursor,
-    hasMore,
-  ])
+  }, [channelId, workspaceId, addMessage, updateMessage, removeMessage])
 
   return socketRef.current
 }

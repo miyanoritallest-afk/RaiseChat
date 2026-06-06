@@ -80,12 +80,13 @@ export class DmRoomsRepository {
   async findOrCreateDirectRoom(myUserId: string, otherUserId: string) {
     return this.prisma.$transaction(async (tx) => {
       // 2人のみのisGroup=false部屋を探す
+      // select: DM_ROOM_SELECT を使い新規作成パスと返却形を統一する（members[].user が常に存在する）
       const candidates = await tx.dmRoom.findMany({
         where: {
           isGroup: false,
           members: { some: { userId: myUserId } },
         },
-        include: { members: { select: { userId: true } } },
+        select: DM_ROOM_SELECT,
       })
 
       // JS側でotherUserIdを含む2人部屋を特定（PrismaのexactlyN件条件を補う）

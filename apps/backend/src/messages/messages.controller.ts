@@ -66,10 +66,11 @@ export class MessagesController {
 
   @Get(':messageId/replies')
   async getReplies(
+    @Param('channelId') channelId: string,
     @Param('messageId') messageId: string,
     @CurrentUser() user: JwtUser,
     @Query() dto: GetMessagesDto,
   ) {
-    return this.messagesService.getReplies(messageId, user.id, dto)
+    return this.messagesService.getReplies(messageId, channelId, user.id, dto)
   }
 }
