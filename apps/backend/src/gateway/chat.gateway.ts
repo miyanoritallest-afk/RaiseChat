@@ -23,6 +23,8 @@ import { WsDmMessageSendDto } from './dto/ws-dm-message-send.dto'
 import { WsDmMessageEditDto } from './dto/ws-dm-message-edit.dto'
 import { WsDmMessageDeleteDto } from './dto/ws-dm-message-delete.dto'
 import { WsReactionToggleDto } from './dto/ws-reaction-toggle.dto'
+import { WsPinAddDto } from './dto/ws-pin-add.dto'
+import { WsPinRemoveDto } from './dto/ws-pin-remove.dto'
 
 type AuthenticatedSocket = Socket & { userId: string; username: string }
 
@@ -291,6 +293,44 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!result) throw new WsException('メッセージが見つかりません')
 
     this.server.to(`channel:${dto.channelId}`).emit('reaction:updated', result)
+  }
+
+  @SubscribeMessage('pin:add')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handlePinAdd(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsPinAddDto,
+  ) {
+    const isMember = await this.gatewayService.isChannelMember(client.userId, dto.channelId)
+    if (!isMember) throw new WsException('このチャンネルへのアクセス権限がありません')
+
+    const pin = await this.gatewayService.addPin({
+      messageId: dto.messageId,
+      channelId: dto.channelId,
+      userId: client.userId,
+    })
+
+    this.server.to(`channel:${dto.channelId}`).emit('pin:updated', { action: 'add', pin })
+  }
+
+  @SubscribeMessage('pin:remove')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async handlePinRemove(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: WsPinRemoveDto,
+  ) {
+    const isMember = await this.gatewayService.isChannelMember(client.userId, dto.channelId)
+    if (!isMember) throw new WsException('このチャンネルへのアクセス権限がありません')
+
+    const result = await this.gatewayService.removePin({
+      messageId: dto.messageId,
+      channelId: dto.channelId,
+      userId: client.userId,
+    })
+
+    this.server
+      .to(`channel:${dto.channelId}`)
+      .emit('pin:updated', { action: 'remove', pin: { id: result.id, messageId: dto.messageId } })
   }
 
   @SubscribeMessage('typing:start')

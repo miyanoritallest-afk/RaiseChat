@@ -10,23 +10,27 @@ import { ThreadPanel } from '@/components/thread/ThreadPanel'
 import { useChannelStore } from '@/stores/channel.store'
 import { useMessageStore } from '@/stores/message.store'
 import { useThreadStore } from '@/stores/thread.store'
+import { usePinStore } from '@/stores/pin.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSocket } from '@/hooks/useSocket'
+import { PinToggleButton, PinnedMessagesPanel } from '@/components/channel/PinnedMessagesPanel'
 
 export default function ChannelPage() {
   const params = useParams<{ workspaceId: string; channelId: string }>()
   const { channels } = useChannelStore()
   const { reset: resetMessages } = useMessageStore()
   const { isOpen: isThreadOpen, reset: resetThread } = useThreadStore()
+  const { reset: resetPins } = usePinStore()
   const { user } = useAuthStore()
   const channel = channels.find((ch) => ch.id === params.channelId)
   const socket = useSocket(params.channelId, params.workspaceId)
 
-  // チャンネル切り替え時はメッセージとスレッドの状態をリセット
+  // チャンネル切り替え時はメッセージ・スレッド・ピンの状態をリセット
   useEffect(() => {
     resetMessages()
     resetThread()
-  }, [params.channelId, resetMessages, resetThread])
+    resetPins()
+  }, [params.channelId, resetMessages, resetThread, resetPins])
 
   return (
     <AppLayout workspaceId={params.workspaceId}>
@@ -36,6 +40,9 @@ export default function ChannelPage() {
           <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2 flex-shrink-0">
             <span className="text-gray-500">#</span>
             <span className="font-semibold text-gray-900">{channel?.name ?? '...'}</span>
+            <div className="ml-auto">
+              <PinToggleButton />
+            </div>
           </div>
           <MessageList wsId={params.workspaceId} channelId={params.channelId} />
           {user && (
@@ -53,6 +60,9 @@ export default function ChannelPage() {
         {isThreadOpen && (
           <ThreadPanel wsId={params.workspaceId} channelId={params.channelId} socket={socket} />
         )}
+
+        {/* ピン留めパネル（ピンアイコンを押したときに右側に表示） */}
+        <PinnedMessagesPanel wsId={params.workspaceId} channelId={params.channelId} />
       </div>
     </AppLayout>
   )
