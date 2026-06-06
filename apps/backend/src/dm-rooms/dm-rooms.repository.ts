@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { S3Service } from '../uploads/s3.service'
 import { CreateDmMessageDto } from './dto/create-dm-message.dto'
 
 const DM_ROOM_SELECT = {
@@ -51,7 +52,36 @@ const DM_MESSAGE_SELECT = {
 
 @Injectable()
 export class DmRoomsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
+  ) {}
+
+  // DB の fileUrl カラムには S3 キーが入っている。読み取り時に署名付き URL へ変換する
+  // S3 障害やキー不正でも他メッセージへの影響を防ぐため、失敗した添付は fileUrl を null にする
+  private async resolveAttachmentUrls<
+    T extends {
+      attachments: {
+        id: string
+        fileUrl: string | null
+        fileType: string
+        fileName: string
+        fileSize: number
+      }[]
+    },
+  >(message: T): Promise<T> {
+    if (!message.attachments || message.attachments.length === 0) return message
+    const resolved = await Promise.all(
+      message.attachments.map(async (a) => {
+        try {
+          return { ...a, fileUrl: await this.s3Service.getSignedUrl(a.fileUrl as string) }
+        } catch {
+          return { ...a, fileUrl: null }
+        }
+      }),
+    )
+    return { ...message, attachments: resolved }
+  }
 
   async findManyByUserId(userId: string) {
     return this.prisma.dmRoom.findMany({
@@ -122,35 +152,40 @@ export class DmRoomsRepository {
   }
 
   async findMessagesByDmRoomId(dmRoomId: string, cursor?: string, limit = 50) {
-    return this.prisma.dmMessage.findMany({
+    const rows = await this.prisma.dmMessage.findMany({
       where: { dmRoomId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: DM_MESSAGE_SELECT,
     })
+    return Promise.all(rows.map((r) => this.resolveAttachmentUrls(r as never)))
   }
 
   async createMessage(dmRoomId: string, userId: string, dto: CreateDmMessageDto) {
-    return this.prisma.dmMessage.create({
+    const row = await this.prisma.dmMessage.create({
       data: { dmRoomId, userId, content: dto.content },
       select: DM_MESSAGE_SELECT,
     })
+    return this.resolveAttachmentUrls(row as never)
   }
 
   async findMessageById(messageId: string) {
-    return this.prisma.dmMessage.findUnique({
+    const row = await this.prisma.dmMessage.findUnique({
       where: { id: messageId },
       select: { ...DM_MESSAGE_SELECT, userId: true },
     })
+    if (!row) return null
+    return this.resolveAttachmentUrls(row as never)
   }
 
   async updateMessage(messageId: string, content: string) {
-    return this.prisma.dmMessage.update({
+    const row = await this.prisma.dmMessage.update({
       where: { id: messageId },
       data: { content, editedAt: new Date() },
       select: DM_MESSAGE_SELECT,
     })
+    return this.resolveAttachmentUrls(row as never)
   }
 
   async softDeleteMessage(messageId: string) {

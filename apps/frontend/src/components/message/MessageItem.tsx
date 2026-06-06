@@ -11,6 +11,7 @@ import { usePins } from '@/hooks/usePins'
 import { usePinStore } from '@/stores/pin.store'
 import { ReactionBar } from './ReactionBar'
 import { EmojiPickerButton } from './EmojiPickerButton'
+import { AttachmentDisplay } from './AttachmentDisplay'
 
 type Props = {
   message: Message
@@ -117,6 +118,11 @@ export function MessageItem({ message, wsId, channelId }: Props) {
           </div>
         ) : (
           <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{message.content}</p>
+        )}
+
+        {/* 添付ファイル */}
+        {!isEditing && message.attachments.length > 0 && (
+          <AttachmentDisplay attachments={message.attachments} />
         )}
 
         {/* リアクション */}

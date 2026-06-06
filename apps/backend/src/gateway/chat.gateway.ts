@@ -118,6 +118,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId: client.userId,
       content: dto.content,
       threadId: dto.threadId,
+      attachments: dto.attachments,
     })
 
     this.server.to(`channel:${dto.channelId}`).emit('message:received', message)

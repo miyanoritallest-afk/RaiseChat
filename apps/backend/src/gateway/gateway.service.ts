@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { WsException } from '@nestjs/websockets'
 import { PrismaService } from '../prisma/prisma.service'
 import { MessagesRepository } from '../messages/messages.repository'
 import { WorkspacesRepository } from '../workspaces/workspaces.repository'
@@ -6,6 +7,7 @@ import { DmRoomsRepository } from '../dm-rooms/dm-rooms.repository'
 import { NotificationsService } from '../notifications/notifications.service'
 import { ReactionsService } from '../reactions/reactions.service'
 import { PinsService } from '../pins/pins.service'
+import type { AttachmentDto } from '../messages/dto/create-message.dto'
 
 @Injectable()
 export class GatewayService {
@@ -66,10 +68,26 @@ export class GatewayService {
     userId: string
     content: string
     threadId?: string
+    attachments?: AttachmentDto[]
   }) {
+    // 添付の s3Key プレフィックスがチャンネルのワークスペースと一致するか検証（クロスワークスペース IDOR 防止）
+    if (data.attachments && data.attachments.length > 0) {
+      const channel = await this.prisma.channel.findUnique({
+        where: { id: data.channelId },
+        select: { workspaceId: true },
+      })
+      if (!channel) throw new WsException('チャンネルが存在しません')
+      for (const a of data.attachments) {
+        if (!a.s3Key.startsWith(`${channel.workspaceId}/`)) {
+          throw new WsException('添付ファイルのキーが不正です')
+        }
+      }
+    }
+
     const message = await this.messagesRepository.create(data.channelId, data.userId, {
       content: data.content,
       threadId: data.threadId,
+      attachments: data.attachments,
     })
 
     // fire-and-forget: 通知はメッセージ送信レイテンシに影響させない

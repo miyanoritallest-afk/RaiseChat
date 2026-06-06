@@ -1,4 +1,15 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  ValidateNested,
+} from 'class-validator'
+import { Type } from 'class-transformer'
+import { AttachmentDto } from '../../messages/dto/create-message.dto'
 
 export class WsMessageSendDto {
   @IsString()
@@ -14,4 +25,11 @@ export class WsMessageSendDto {
   @IsString()
   @IsOptional()
   threadId?: string
+
+  @IsArray()
+  @IsOptional()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentDto)
+  attachments?: AttachmentDto[]
 }
