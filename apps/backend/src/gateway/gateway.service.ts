@@ -201,8 +201,10 @@ export class GatewayService {
       data.emoji,
     )
 
-    // fire-and-forget: リアクション追加通知
-    void this.notificationsService.notifyReactionAdded(data.messageId, data.userId)
+    // fire-and-forget: 追加時のみ通知（削除時は通知しない）
+    if (result.action === 'added') {
+      void this.notificationsService.notifyReactionAdded(data.messageId, data.userId)
+    }
 
     return result
   }
