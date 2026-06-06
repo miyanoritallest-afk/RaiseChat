@@ -93,8 +93,9 @@ export class NotificationsService {
 
   /**
    * DM送信時に相手メンバーへ UNREAD 通知を生成する。
+   * 1 DM部屋につき 1 通知/ユーザーとして管理する（dmRoomId で重複チェック）。
    */
-  async notifyDmUnread(dmRoomId: string, dmMessageId: string, senderId: string): Promise<void> {
+  async notifyDmUnread(dmRoomId: string, senderId: string): Promise<void> {
     const members = await this.prisma.dmRoomMember.findMany({
       where: { dmRoomId, userId: { not: senderId } },
       select: { userId: true },
@@ -105,7 +106,7 @@ export class NotificationsService {
         this.notificationsRepository.createIfNotExists({
           type: NotificationType.UNREAD,
           userId: member.userId,
-          // DmMessage と Message は別テーブルのため messageId は設定しない
+          dmRoomId,
         }),
       ),
     )

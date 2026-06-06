@@ -156,7 +156,7 @@ export class GatewayService {
     })
 
     // fire-and-forget: DM受信通知
-    void this.notificationsService.notifyDmUnread(data.dmRoomId, message.id, data.userId)
+    void this.notificationsService.notifyDmUnread(data.dmRoomId, data.userId)
 
     return message
   }
