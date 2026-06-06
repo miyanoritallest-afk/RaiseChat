@@ -5,6 +5,7 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository'
 import { DmRoomsRepository } from '../dm-rooms/dm-rooms.repository'
 import { NotificationsService } from '../notifications/notifications.service'
 import { ReactionsService } from '../reactions/reactions.service'
+import { PinsService } from '../pins/pins.service'
 
 @Injectable()
 export class GatewayService {
@@ -15,6 +16,7 @@ export class GatewayService {
     private readonly dmRoomsRepository: DmRoomsRepository,
     private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
+    private readonly pinsService: PinsService,
   ) {}
 
   async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
@@ -180,6 +182,21 @@ export class GatewayService {
     if (!message || message.dmRoomId !== data.dmRoomId) return null
     if (message.userId !== data.userId) return null
     return this.dmRoomsRepository.softDeleteMessage(data.messageId)
+  }
+
+  // --- ピン留め ---
+
+  async addPin(data: { messageId: string; channelId: string; userId: string }) {
+    return this.pinsService.addPin(data.messageId, data.channelId, data.userId)
+  }
+
+  async removePin(data: {
+    messageId: string
+    channelId: string
+    userId: string
+    workspaceId: string
+  }) {
+    return this.pinsService.removePin(data.messageId, data.channelId, data.userId, data.workspaceId)
   }
 
   // --- リアクション ---

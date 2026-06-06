@@ -5,8 +5,10 @@ import { getSocket } from '@/lib/socket/socket.client'
 import { useMessageStore } from '@/stores/message.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { createReactionUpdatedHandler } from '@/hooks/useReaction'
+import { usePinStore } from '@/stores/pin.store'
 import type { Message } from '@/types/message'
 import type { RawReactionPayload } from '@/lib/api/reaction.api'
+import type { PinUpdatedPayload, Pin } from '@/types/pin'
 
 type ReplyCountUpdatedPayload = {
   parentMessageId: string
@@ -20,6 +22,7 @@ export function useSocket(channelId: string, workspaceId: string) {
   const removeMessage = useMessageStore((s) => s.removeMessage)
   const myUserId = useAuthStore((s) => s.user?.id ?? '')
   const socketRef = useRef(getSocket())
+  const { addPin, removePin } = usePinStore()
 
   useEffect(() => {
     const socket = socketRef.current
@@ -55,11 +58,21 @@ export function useSocket(channelId: string, workspaceId: string) {
     // reaction:updated: チャンネル全員のリアクション表示を同期する
     const onReactionUpdated = createReactionUpdatedHandler(myUserId)
 
+    // pin:updated: ピン留め追加・削除をチャンネル全員に同期する
+    const onPinUpdated = (payload: PinUpdatedPayload) => {
+      if (payload.action === 'add') {
+        usePinStore.getState().addPin(payload.pin as Pin)
+      } else {
+        usePinStore.getState().removePin(payload.pin.id)
+      }
+    }
+
     socket.on('message:received', onMessageReceived)
     socket.on('message:updated', onMessageUpdated)
     socket.on('message:deleted', onMessageDeleted)
     socket.on('thread:reply_count_updated', onThreadReplyCountUpdated)
     socket.on('reaction:updated', onReactionUpdated as (payload: RawReactionPayload) => void)
+    socket.on('pin:updated', onPinUpdated)
 
     return () => {
       socket.off('message:received', onMessageReceived)
@@ -67,8 +80,18 @@ export function useSocket(channelId: string, workspaceId: string) {
       socket.off('message:deleted', onMessageDeleted)
       socket.off('thread:reply_count_updated', onThreadReplyCountUpdated)
       socket.off('reaction:updated', onReactionUpdated as (payload: RawReactionPayload) => void)
+      socket.off('pin:updated', onPinUpdated)
     }
-  }, [channelId, workspaceId, addMessage, updateMessage, removeMessage, myUserId])
+  }, [
+    channelId,
+    workspaceId,
+    addMessage,
+    updateMessage,
+    removeMessage,
+    myUserId,
+    addPin,
+    removePin,
+  ])
 
   return socketRef.current
 }

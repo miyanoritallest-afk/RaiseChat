@@ -10,6 +10,7 @@ import { DmRoomsModule } from './dm-rooms/dm-rooms.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { GatewayModule } from './gateway/gateway.module'
 import { ReactionsModule } from './reactions/reactions.module'
+import { PinsModule } from './pins/pins.module'
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ReactionsModule } from './reactions/reactions.module'
     NotificationsModule,
     GatewayModule,
     ReactionsModule,
+    PinsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
