@@ -11,6 +11,7 @@ import { NotificationsModule } from './notifications/notifications.module'
 import { GatewayModule } from './gateway/gateway.module'
 import { ReactionsModule } from './reactions/reactions.module'
 import { PinsModule } from './pins/pins.module'
+import { UploadsModule } from './uploads/uploads.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PinsModule } from './pins/pins.module'
     GatewayModule,
     ReactionsModule,
     PinsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

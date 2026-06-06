@@ -74,14 +74,32 @@ export class MessagesRepository {
   }
 
   async create(channelId: string, userId: string, dto: CreateMessageDto) {
-    return this.prisma.message.create({
-      data: {
-        channelId,
-        userId,
-        content: dto.content,
-        threadId: dto.threadId,
-      },
-      select: MESSAGE_SELECT,
+    if (!dto.attachments || dto.attachments.length === 0) {
+      return this.prisma.message.create({
+        data: { channelId, userId, content: dto.content, threadId: dto.threadId },
+        select: MESSAGE_SELECT,
+      })
+    }
+
+    // 添付ファイルがある場合はメッセージと添付を $transaction で同時作成
+    return this.prisma.$transaction(async (tx) => {
+      const message = await tx.message.create({
+        data: { channelId, userId, content: dto.content, threadId: dto.threadId },
+        select: { id: true },
+      })
+      await tx.messageAttachment.createMany({
+        data: dto.attachments!.map((a) => ({
+          messageId: message.id,
+          fileUrl: a.fileUrl,
+          fileType: a.fileType,
+          fileName: a.fileName,
+          fileSize: a.fileSize,
+        })),
+      })
+      return this.prisma.message.findUniqueOrThrow({
+        where: { id: message.id },
+        select: MESSAGE_SELECT,
+      })
     })
   }
 

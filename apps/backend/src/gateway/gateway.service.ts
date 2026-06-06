@@ -6,6 +6,7 @@ import { DmRoomsRepository } from '../dm-rooms/dm-rooms.repository'
 import { NotificationsService } from '../notifications/notifications.service'
 import { ReactionsService } from '../reactions/reactions.service'
 import { PinsService } from '../pins/pins.service'
+import type { AttachmentDto } from '../messages/dto/create-message.dto'
 
 @Injectable()
 export class GatewayService {
@@ -66,10 +67,12 @@ export class GatewayService {
     userId: string
     content: string
     threadId?: string
+    attachments?: AttachmentDto[]
   }) {
     const message = await this.messagesRepository.create(data.channelId, data.userId, {
       content: data.content,
       threadId: data.threadId,
+      attachments: data.attachments,
     })
 
     // fire-and-forget: 通知はメッセージ送信レイテンシに影響させない
