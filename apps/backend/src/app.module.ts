@@ -9,6 +9,7 @@ import { MessagesModule } from './messages/messages.module'
 import { DmRoomsModule } from './dm-rooms/dm-rooms.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { GatewayModule } from './gateway/gateway.module'
+import { ReactionsModule } from './reactions/reactions.module'
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { GatewayModule } from './gateway/gateway.module'
     DmRoomsModule,
     NotificationsModule,
     GatewayModule,
+    ReactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

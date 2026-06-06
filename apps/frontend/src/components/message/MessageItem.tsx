@@ -6,6 +6,9 @@ import { useAuthStore } from '@/stores/auth.store'
 import { messageApi } from '@/lib/api/message.api'
 import { useMessageStore } from '@/stores/message.store'
 import { useThreadStore } from '@/stores/thread.store'
+import { useReaction } from '@/hooks/useReaction'
+import { ReactionBar } from './ReactionBar'
+import { EmojiPickerButton } from './EmojiPickerButton'
 
 type Props = {
   message: Message
@@ -17,6 +20,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
   const { user } = useAuthStore()
   const { updateMessage, removeMessage } = useMessageStore()
   const { openThread } = useThreadStore()
+  const { toggle: toggleReaction } = useReaction(channelId)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,6 +114,14 @@ export function MessageItem({ message, wsId, channelId }: Props) {
           <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{message.content}</p>
         )}
 
+        {/* リアクション */}
+        {!isEditing && (
+          <ReactionBar
+            reactions={message.reactions}
+            onToggle={(emoji) => toggleReaction(message.id, emoji)}
+          />
+        )}
+
         {/* 返信数とアバター（返信がある場合のみ表示） */}
         {hasReplies && !isEditing && (
           <button
@@ -134,6 +146,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
 
       {!isEditing && (
         <div className="hidden group-hover:flex items-center gap-1 self-start mt-1">
+          <EmojiPickerButton onSelect={(emoji) => toggleReaction(message.id, emoji)} />
           {/* 返信がない場合のみ返信ボタンをホバー時に表示（返信があれば本文下に常時表示） */}
           {!hasReplies && (
             <button

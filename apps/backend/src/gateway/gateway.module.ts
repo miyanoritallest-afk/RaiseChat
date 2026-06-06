@@ -6,6 +6,7 @@ import { MessagesModule } from '../messages/messages.module'
 import { WorkspacesModule } from '../workspaces/workspaces.module'
 import { DmRoomsModule } from '../dm-rooms/dm-rooms.module'
 import { NotificationsModule } from '../notifications/notifications.module'
+import { ReactionsModule } from '../reactions/reactions.module'
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from '../notifications/notifications.module'
     WorkspacesModule,
     DmRoomsModule,
     NotificationsModule,
+    ReactionsModule,
   ],
   providers: [ChatGateway, GatewayService],
 })
