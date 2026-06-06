@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { WsException } from '@nestjs/websockets'
 import { PrismaService } from '../prisma/prisma.service'
 import { MessagesRepository } from '../messages/messages.repository'
 import { WorkspacesRepository } from '../workspaces/workspaces.repository'
@@ -69,6 +70,20 @@ export class GatewayService {
     threadId?: string
     attachments?: AttachmentDto[]
   }) {
+    // 添付の s3Key プレフィックスがチャンネルのワークスペースと一致するか検証（クロスワークスペース IDOR 防止）
+    if (data.attachments && data.attachments.length > 0) {
+      const channel = await this.prisma.channel.findUnique({
+        where: { id: data.channelId },
+        select: { workspaceId: true },
+      })
+      if (!channel) throw new WsException('チャンネルが存在しません')
+      for (const a of data.attachments) {
+        if (!a.s3Key.startsWith(`${channel.workspaceId}/`)) {
+          throw new WsException('添付ファイルのキーが不正です')
+        }
+      }
+    }
+
     const message = await this.messagesRepository.create(data.channelId, data.userId, {
       content: data.content,
       threadId: data.threadId,

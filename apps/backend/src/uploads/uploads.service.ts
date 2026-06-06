@@ -13,13 +13,20 @@ const ALLOWED: Record<string, { fileType: FileType }> = {
 }
 
 // マジックバイトマップ（MIME 偽装対策）
-const MAGIC: Array<{ mime: string; bytes: number[]; offset: number }> = [
-  { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff], offset: 0 },
-  { mime: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47], offset: 0 },
-  { mime: 'image/gif', bytes: [0x47, 0x49, 0x46], offset: 0 },
-  { mime: 'image/webp', bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 },
-  { mime: 'video/mp4', bytes: [0x66, 0x74, 0x79, 0x70], offset: 4 },
-  { mime: 'video/webm', bytes: [0x1a, 0x45, 0xdf, 0xa3], offset: 0 },
+// WebP は RIFF????WEBP 構造: offset 0 に RIFF + offset 8 に WEBP の両方を確認する
+const MAGIC: Array<{ mime: string; checks: Array<{ bytes: number[]; offset: number }> }> = [
+  { mime: 'image/jpeg', checks: [{ bytes: [0xff, 0xd8, 0xff], offset: 0 }] },
+  { mime: 'image/png', checks: [{ bytes: [0x89, 0x50, 0x4e, 0x47], offset: 0 }] },
+  { mime: 'image/gif', checks: [{ bytes: [0x47, 0x49, 0x46], offset: 0 }] },
+  {
+    mime: 'image/webp',
+    checks: [
+      { bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 }, // RIFF
+      { bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 }, // WEBP
+    ],
+  },
+  { mime: 'video/mp4', checks: [{ bytes: [0x66, 0x74, 0x79, 0x70], offset: 4 }] },
+  { mime: 'video/webm', checks: [{ bytes: [0x1a, 0x45, 0xdf, 0xa3], offset: 0 }] },
 ]
 
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
@@ -79,9 +86,9 @@ export class UploadsService {
   private validateMagicBytes(buffer: Buffer, mime: string): boolean {
     const entry = MAGIC.find((m) => m.mime === mime)
     if (!entry) return false
-    for (let i = 0; i < entry.bytes.length; i++) {
-      if (buffer[entry.offset + i] !== entry.bytes[i]) return false
-    }
-    return true
+    return entry.checks.every(({ bytes, offset }) => {
+      if (buffer.length < offset + bytes.length) return false
+      return bytes.every((byte, i) => buffer[offset + i] === byte)
+    })
   }
 }

@@ -1,10 +1,12 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Min,
   MinLength,
@@ -14,10 +16,11 @@ import { Type } from 'class-transformer'
 import { FileType } from '@prisma/client'
 
 export class AttachmentDto {
-  // S3 キー（例: workspaceId/uuid.ext）を受け取る。URL ではなくキーのみ受け付けることで任意 URL 混入を防ぐ
+  // S3 キー（例: workspaceId/uuid.ext）のみ受け付ける。パストラバーサル文字（.. / \）を禁止
   @IsString()
   @IsNotEmpty()
   @MaxLength(512)
+  @Matches(/^[^./\\][^/\\]*\/[^./\\][^/\\]*$/, { message: 's3Key の形式が不正です' })
   s3Key!: string
 
   @IsEnum(FileType)
@@ -46,6 +49,7 @@ export class CreateMessageDto {
 
   @IsArray()
   @IsOptional()
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => AttachmentDto)
   attachments?: AttachmentDto[]

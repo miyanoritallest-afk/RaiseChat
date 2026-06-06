@@ -77,11 +77,12 @@ export class MessagesRepository {
   ) {}
 
   // DB の fileUrl カラムには S3 キーが入っている。読み取り時に署名付き URL へ変換する
+  // S3 障害やキー不正でも他メッセージへの影響を防ぐため、失敗した添付は fileUrl を null にしてフォールバック
   private async resolveAttachmentUrls<
     T extends {
       attachments: {
         id: string
-        fileUrl: string
+        fileUrl: string | null
         fileType: string
         fileName: string
         fileSize: number
@@ -90,10 +91,13 @@ export class MessagesRepository {
   >(message: T): Promise<T> {
     if (!message.attachments || message.attachments.length === 0) return message
     const resolved = await Promise.all(
-      message.attachments.map(async (a) => ({
-        ...a,
-        fileUrl: await this.s3Service.getSignedUrl(a.fileUrl),
-      })),
+      message.attachments.map(async (a) => {
+        try {
+          return { ...a, fileUrl: await this.s3Service.getSignedUrl(a.fileUrl as string) }
+        } catch {
+          return { ...a, fileUrl: null }
+        }
+      }),
     )
     return { ...message, attachments: resolved }
   }
@@ -102,7 +106,7 @@ export class MessagesRepository {
     T extends {
       attachments: {
         id: string
-        fileUrl: string
+        fileUrl: string | null
         fileType: string
         fileName: string
         fileSize: number

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   HttpCode,
   HttpStatus,
@@ -57,7 +58,7 @@ export class UploadsController {
     @CurrentUser() _user: JwtUser,
   ) {
     if (!file) {
-      return { error: 'ファイルが見つかりません' }
+      throw new BadRequestException('ファイルが見つかりません')
     }
     return this.uploadsService.uploadFile(wsId, file)
   }

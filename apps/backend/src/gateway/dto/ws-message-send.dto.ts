@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsNotEmpty,
   IsOptional,
@@ -27,6 +28,7 @@ export class WsMessageSendDto {
 
   @IsArray()
   @IsOptional()
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => AttachmentDto)
   attachments?: AttachmentDto[]
