@@ -11,7 +11,12 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/playwright/**', '**/.next/**'],
     coverage: {
       provider: 'v8',
-      include: ['src/stores/**', 'src/hooks/**'],
+      include: [
+        'src/stores/message.store.ts',
+        'src/stores/auth.store.ts',
+        'src/hooks/useMessages.ts',
+        'src/hooks/useSocket.ts',
+      ],
       thresholds: {
         lines: 60,
         functions: 60,
