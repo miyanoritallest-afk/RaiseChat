@@ -4,7 +4,8 @@ const BASE_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 let counter = 0
 function uniqueUser(prefix = 'rt') {
-  return `${prefix}_${Date.now()}_${++counter}`
+  const ts = String(Date.now()).slice(-5)
+  return `${prefix}${ts}${++counter}`
 }
 
 async function setupAuthenticatedUser(
@@ -16,12 +17,20 @@ async function setupAuthenticatedUser(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, displayName: username, password: 'TestPass1!' }),
   })
+  if (!res.ok) {
+    throw new Error(`Failed to register user ${username}: ${res.status} ${await res.text()}`)
+  }
   const data = (await res.json()) as { token: string; user: { id: string } }
 
   const context = await browser.newContext()
   const page = await context.newPage()
+  // まずlocalStorageにトークンをセットしてからページ遷移
+  // (Socket.ioはgetSocket()初回呼び出し時にlocalStorageからトークンを読む)
   await page.goto('/')
   await page.evaluate((t: string) => localStorage.setItem('token', t), data.token)
+  await page.reload()
+  // ページのDOMが安定するまで待機（AuthInitializerのgetMe完了を想定）
+  await page.waitForLoadState('networkidle', { timeout: 10000 })
 
   return { context, page, token: data.token, userId: data.user.id }
 }
@@ -64,25 +73,25 @@ test.describe('リアルタイムメッセージング (2コンテキスト)', (
     })
 
     // 両ユーザーがgeneralチャンネルを開く
-    await userA.page.goto(`/workspaces/${ws.id}`)
-    await userB.page.goto(`/workspaces/${ws.id}`)
+    await userA.page.goto(`/${ws.id}`)
+    await userB.page.goto(`/${ws.id}`)
 
-    // チャンネルが表示されるまで待機
-    await userA.page.waitForSelector('[data-testid="message-input"], textarea, input[placeholder]', {
-      timeout: 10000,
-    })
+    // 両ユーザーがチャンネルページ（入力欄）に到達するまで待機
+    await userA.page.waitForSelector('[data-testid="message-input"], textarea', { timeout: 15000 })
+    await userB.page.waitForSelector('[data-testid="message-input"], textarea', { timeout: 15000 })
+
+    // Socket.io接続の安定を待つ
+    await userA.page.waitForTimeout(1000)
 
     const uniqueMessage = `Hello from A at ${Date.now()}`
 
     // userAがメッセージ送信
-    const inputA = userA.page
-      .locator('[data-testid="message-input"], textarea')
-      .first()
+    const inputA = userA.page.locator('[data-testid="message-input"], textarea').first()
     await inputA.fill(uniqueMessage)
     await inputA.press('Enter')
 
     // userBの画面でメッセージが表示されるのを待機（リアルタイム検証）
-    await expect(userB.page.getByText(uniqueMessage)).toBeVisible({ timeout: 8000 })
+    await expect(userB.page.getByText(uniqueMessage)).toBeVisible({ timeout: 10000 })
 
     await userA.context.close()
     await userB.context.close()
@@ -114,34 +123,44 @@ test.describe('リアルタイムメッセージング (2コンテキスト)', (
       body: JSON.stringify({ inviteCode: ws.inviteCode }),
     })
 
-    await userA.page.goto(`/workspaces/${ws.id}`)
-    await userB.page.goto(`/workspaces/${ws.id}`)
+    // generalチャンネルIDを取得
+    const chRes = await fetch(`${BASE_API}/workspaces/${ws.id}/channels`, {
+      headers: { Authorization: `Bearer ${userA.token}` },
+    })
+    const channels = (await chRes.json()) as Array<{ id: string; name: string }>
+    const general = channels.find((c) => c.name === 'general') ?? channels[0]
 
-    await userA.page.waitForSelector('[data-testid="message-input"], textarea', { timeout: 10000 })
+    await userA.page.goto(`/${ws.id}`)
+    await userB.page.goto(`/${ws.id}`)
+
+    // 両ユーザーがチャンネルページに到達するまで待機
+    await userA.page.waitForSelector('[data-testid="message-input"], textarea', { timeout: 15000 })
+    await userB.page.waitForSelector('[data-testid="message-input"], textarea', { timeout: 15000 })
+
+    // Socket.io接続の安定を待つ
+    await userA.page.waitForTimeout(1500)
 
     const uniqueMessage = `Delete me ${Date.now()}`
     const inputA = userA.page.locator('[data-testid="message-input"], textarea').first()
     await inputA.fill(uniqueMessage)
     await inputA.press('Enter')
 
-    // userBの画面でメッセージが表示されるを待機
-    await expect(userB.page.getByText(uniqueMessage)).toBeVisible({ timeout: 8000 })
+    // 両ユーザーの画面でメッセージが表示されるを待機
+    await expect(userA.page.getByText(uniqueMessage)).toBeVisible({ timeout: 10000 })
+    await expect(userB.page.getByText(uniqueMessage)).toBeVisible({ timeout: 10000 })
 
-    // userAがメッセージをホバーして削除ボタンをクリック
+    // UIから削除ボタンをクリック（メッセージにホバーして削除ボタンを表示）
     const messageEl = userA.page.getByText(uniqueMessage)
     await messageEl.hover()
-    const deleteBtn = userA.page.getByRole('button', { name: /削除/ }).first()
-    if (await deleteBtn.isVisible()) {
-      await deleteBtn.click()
-      // 確認ダイアログがある場合
-      const confirmBtn = userA.page.getByRole('button', { name: /確認|OK|はい/ }).first()
-      if (await confirmBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await confirmBtn.click()
-      }
+    const deleteBtn = userA.page.locator('[data-testid="delete-message-btn"]').first()
+    await expect(deleteBtn).toBeVisible({ timeout: 3000 })
+    await deleteBtn.click({ force: true })
 
-      // userBの画面からメッセージが消えるのを待機
-      await expect(userB.page.getByText(uniqueMessage)).not.toBeVisible({ timeout: 8000 })
-    }
+    // userAの画面でメッセージが消えることを確認（削除完了の証明）
+    await expect(userA.page.getByText(uniqueMessage)).not.toBeVisible({ timeout: 8000 })
+
+    // userBの画面からメッセージが消えるのを待機（Socket.ioリアルタイム反映）
+    await expect(userB.page.getByText(uniqueMessage)).not.toBeVisible({ timeout: 10000 })
 
     await userA.context.close()
     await userB.context.close()

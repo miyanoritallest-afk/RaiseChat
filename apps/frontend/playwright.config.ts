@@ -14,7 +14,8 @@ export default defineConfig({
   projects: [
     {
       name: 'setup',
-      testMatch: '**/auth.setup.ts',
+      testDir: './playwright',
+      testMatch: 'auth.setup.ts',
     },
     {
       name: 'chromium',
@@ -23,6 +24,7 @@ export default defineConfig({
         storageState: 'playwright/.auth/userA.json',
       },
       dependencies: ['setup'],
+      testIgnore: '**/realtime-messaging.spec.ts',
     },
     {
       name: 'realtime',

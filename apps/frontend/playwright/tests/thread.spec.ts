@@ -4,7 +4,8 @@ const BASE_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 let counter = 0
 function uniqueUser(prefix = 'thr') {
-  return `${prefix}_${Date.now()}_${++counter}`
+  const ts = String(Date.now()).slice(-5)
+  return `${prefix}${ts}${++counter}`
 }
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -29,7 +30,7 @@ test.describe('スレッド機能 (E2E)', () => {
 
     await page.goto('/')
     await page.evaluate((t: string) => localStorage.setItem('token', t), token)
-    await page.goto(`/workspaces/${ws.id}`)
+    await page.goto(`/${ws.id}`)
 
     // メッセージ入力を待機
     const hasInput = await page

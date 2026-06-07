@@ -10,7 +10,8 @@ let userCounter = 0
  * 各VUが独立したユーザーとして動作するために使用する。
  */
 export function login() {
-  const username = `k6user_${Date.now()}_${++userCounter}_${Math.random().toString(36).slice(2, 8)}`
+  const ts = String(Date.now()).slice(-5)
+  const username = `k6u${ts}${++userCounter}`
   const password = __ENV.TEST_PASSWORD || 'K6TestPass1!'
 
   const registerRes = http.post(
