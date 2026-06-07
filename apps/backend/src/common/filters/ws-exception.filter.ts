@@ -1,9 +1,9 @@
 import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common'
 import { WsException } from '@nestjs/websockets'
-import { Prisma } from '@prisma/client'
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
 import { Socket } from 'socket.io'
 
-@Catch(WsException, Prisma.PrismaClientKnownRequestError, Error)
+@Catch(WsException, PrismaClientKnownRequestError, Error)
 export class WsExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(WsExceptionFilter.name)
 
@@ -17,7 +17,7 @@ export class WsExceptionFilter implements ExceptionFilter {
       const msg = exception.message
       message = typeof msg === 'string' ? msg : JSON.stringify(msg)
       code = 'WS_ERROR'
-    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+    } else if (exception instanceof PrismaClientKnownRequestError) {
       if (exception.code === 'P2002') {
         message = '既に同じデータが存在します'
         code = 'CONFLICT'

@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/rules-of-hooks': 'error',
     },
   },
 ])

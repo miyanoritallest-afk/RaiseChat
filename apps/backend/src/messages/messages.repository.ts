@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Prisma } from '.prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { S3Service } from '../uploads/s3.service'
 import { CreateMessageDto } from './dto/create-message.dto'
@@ -48,6 +49,8 @@ const MESSAGE_SELECT = {
     },
   },
 } as const
+
+type MessageSelectPayload = Prisma.MessageGetPayload<{ select: typeof MESSAGE_SELECT }>
 
 type MessageRow = Awaited<ReturnType<PrismaService['message']['findUniqueOrThrow']>> & {
   attachments: {
@@ -116,7 +119,11 @@ export class MessagesRepository {
     return Promise.all(messages.map((m) => this.resolveAttachmentUrls(m)))
   }
 
-  async findManyByChannelId(channelId: string, cursor?: string, limit = 50) {
+  async findManyByChannelId(
+    channelId: string,
+    cursor?: string,
+    limit = 50,
+  ): Promise<MessageSelectPayload[]> {
     const rows = await this.prisma.message.findMany({
       where: { channelId, threadId: null, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -124,7 +131,7 @@ export class MessagesRepository {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: MESSAGE_SELECT,
     })
-    return this.resolveMany(rows as unknown as RawMessage[])
+    return this.resolveMany(rows)
   }
 
   async findById(messageId: string) {
@@ -136,7 +143,7 @@ export class MessagesRepository {
       },
     })
     if (!row) return null
-    return this.resolveAttachmentUrls(row as unknown as RawMessage & { userId: string })
+    return this.resolveAttachmentUrls(row)
   }
 
   async create(channelId: string, userId: string, dto: CreateMessageDto) {
@@ -145,11 +152,11 @@ export class MessagesRepository {
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
         select: MESSAGE_SELECT,
       })
-      return this.resolveAttachmentUrls(row as unknown as RawMessage)
+      return this.resolveAttachmentUrls(row)
     }
 
     // 添付ファイルがある場合はメッセージと添付を $transaction で同時作成
-    const row = await this.prisma.$transaction(async (tx) => {
+    const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const message = await tx.message.create({
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
         select: { id: true },
@@ -168,7 +175,7 @@ export class MessagesRepository {
         select: MESSAGE_SELECT,
       })
     })
-    return this.resolveAttachmentUrls(row as unknown as RawMessage)
+    return this.resolveAttachmentUrls(row)
   }
 
   async update(messageId: string, content: string) {
@@ -177,7 +184,7 @@ export class MessagesRepository {
       data: { content, editedAt: new Date() },
       select: MESSAGE_SELECT,
     })
-    return this.resolveAttachmentUrls(row as unknown as RawMessage)
+    return this.resolveAttachmentUrls(row)
   }
 
   async softDelete(messageId: string) {
@@ -188,7 +195,11 @@ export class MessagesRepository {
     })
   }
 
-  async findRepliesByMessageId(parentMessageId: string, cursor?: string, limit = 50) {
+  async findRepliesByMessageId(
+    parentMessageId: string,
+    cursor?: string,
+    limit = 50,
+  ): Promise<MessageSelectPayload[]> {
     const rows = await this.prisma.message.findMany({
       where: { threadId: parentMessageId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -196,6 +207,6 @@ export class MessagesRepository {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: MESSAGE_SELECT,
     })
-    return this.resolveMany(rows as unknown as RawMessage[])
+    return this.resolveMany(rows)
   }
 }

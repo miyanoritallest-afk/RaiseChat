@@ -42,7 +42,7 @@ export class GatewayService {
       where: { userId },
       select: { workspaceId: true },
     })
-    return members.map((m) => m.workspaceId)
+    return members.map((m: { workspaceId: string }) => m.workspaceId)
   }
 
   async setUserOnline(userId: string) {
@@ -125,7 +125,7 @@ export class GatewayService {
       },
       select: { userId: true },
     })
-    return members.map((m) => m.userId)
+    return members.map((m: { userId: string }) => m.userId)
   }
 
   async updateMessage(data: { messageId: string; userId: string; content: string }) {
@@ -165,7 +165,7 @@ export class GatewayService {
       where: { dmRoomId, userId: { not: excludeUserId } },
       select: { userId: true },
     })
-    return members.map((m) => m.userId)
+    return members.map((m: { userId: string }) => m.userId)
   }
 
   async isDmRoomMember(userId: string, dmRoomId: string): Promise<boolean> {
