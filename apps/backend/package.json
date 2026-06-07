@@ -87,9 +87,24 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.service.(t|j)s",
+      "!**/*.spec.(t|j)s",
+      "!**/main.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "coverageThreshold": {
+      "global": {
+        "branches": 45,
+        "functions": 25,
+        "lines": 45,
+        "statements": 45
+      },
+      "./src/auth/auth.service.ts": {
+        "branches": 85,
+        "functions": 90,
+        "lines": 90
+      }
+    }
   }
 }
