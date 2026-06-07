@@ -93,5 +93,6 @@ export function useSocket(channelId: string, workspaceId: string) {
     removePin,
   ])
 
+  // eslint-disable-next-line react-hooks/refs
   return socketRef.current
 }

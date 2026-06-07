@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "audit:backend": "npm audit --audit-level=high --prefix apps/backend",
+    "audit:frontend": "npm audit --audit-level=high --prefix apps/frontend",
+    "audit:all": "npm run audit:backend && npm run audit:frontend"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",

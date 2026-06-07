@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { S3Service } from '../uploads/s3.service'
 import { CreateDmMessageDto } from './dto/create-dm-message.dto'
@@ -108,7 +109,7 @@ export class DmRoomsRepository {
 
   // 1対1DMの場合は既存部屋を返し、なければ新規作成する（重複防止）
   async findOrCreateDirectRoom(myUserId: string, otherUserId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 2人のみのisGroup=false部屋を探す
       // select: DM_ROOM_SELECT を使い新規作成パスと返却形を統一する（members[].user が常に存在する）
       const candidates = await tx.dmRoom.findMany({
@@ -120,8 +121,11 @@ export class DmRoomsRepository {
       })
 
       // JS側でotherUserIdを含む2人部屋を特定（PrismaのexactlyN件条件を補う）
+      type Candidate = (typeof candidates)[number]
+      type Member = Candidate['members'][number]
       const existing = candidates.find(
-        (room) => room.members.length === 2 && room.members.some((m) => m.userId === otherUserId),
+        (room: Candidate) =>
+          room.members.length === 2 && room.members.some((m: Member) => m.userId === otherUserId),
       )
       if (existing) return existing
 
@@ -159,7 +163,8 @@ export class DmRoomsRepository {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: DM_MESSAGE_SELECT,
     })
-    return Promise.all(rows.map((r) => this.resolveAttachmentUrls(r as never)))
+    type Row = (typeof rows)[number]
+    return Promise.all(rows.map((r: Row) => this.resolveAttachmentUrls(r)))
   }
 
   async createMessage(dmRoomId: string, userId: string, dto: CreateDmMessageDto) {
@@ -167,7 +172,7 @@ export class DmRoomsRepository {
       data: { dmRoomId, userId, content: dto.content },
       select: DM_MESSAGE_SELECT,
     })
-    return this.resolveAttachmentUrls(row as never)
+    return this.resolveAttachmentUrls(row)
   }
 
   async findMessageById(messageId: string) {
@@ -176,7 +181,7 @@ export class DmRoomsRepository {
       select: { ...DM_MESSAGE_SELECT, userId: true },
     })
     if (!row) return null
-    return this.resolveAttachmentUrls(row as never)
+    return this.resolveAttachmentUrls(row)
   }
 
   async updateMessage(messageId: string, content: string) {
@@ -185,7 +190,7 @@ export class DmRoomsRepository {
       data: { content, editedAt: new Date() },
       select: DM_MESSAGE_SELECT,
     })
-    return this.resolveAttachmentUrls(row as never)
+    return this.resolveAttachmentUrls(row)
   }
 
   async softDeleteMessage(messageId: string) {

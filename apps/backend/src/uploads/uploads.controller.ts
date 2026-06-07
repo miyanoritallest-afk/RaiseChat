@@ -55,6 +55,7 @@ export class UploadsController {
   async uploadFile(
     @Param('wsId') wsId: string,
     @UploadedFile() file: Express.Multer.File,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     @CurrentUser() _user: JwtUser,
   ) {
     if (!file) {

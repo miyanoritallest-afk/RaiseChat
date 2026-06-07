@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
-import { FileType } from '@prisma/client'
+import { FileType } from '.prisma/client'
 import { S3Service } from './s3.service'
 
 // 許可 MIME タイプと対応するファイルタイプ

@@ -13,7 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
-import { FileType } from '@prisma/client'
+import { FileType } from '.prisma/client'
 
 export class AttachmentDto {
   // S3 キー（例: workspaceId/uuid.ext）のみ受け付ける。パストラバーサル文字（.. / \）を禁止

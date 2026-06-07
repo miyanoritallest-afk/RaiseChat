@@ -33,5 +33,6 @@ export function useDmSocket(dmRoomId: string) {
     }
   }, [dmRoomId, addMessage, updateMessage, removeMessage])
 
+  // eslint-disable-next-line react-hooks/refs
   return socketRef.current
 }

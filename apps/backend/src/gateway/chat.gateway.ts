@@ -130,7 +130,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server.to(`channel:${dto.channelId}`).emit('thread:reply_count_updated', {
           parentMessageId: dto.threadId,
           replyCount: parent._count.replies,
-          latestRepliers: parent.replies.map((r) => r.user),
+          latestRepliers: parent.replies.map((r: { user: unknown }) => r.user),
         })
         // スレッド返信の通知を親メッセージ投稿者に送信
         this.server

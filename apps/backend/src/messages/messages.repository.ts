@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Prisma } from '.prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { S3Service } from '../uploads/s3.service'
 import { CreateMessageDto } from './dto/create-message.dto'
@@ -49,25 +50,7 @@ const MESSAGE_SELECT = {
   },
 } as const
 
-type MessageRow = Awaited<ReturnType<PrismaService['message']['findUniqueOrThrow']>> & {
-  attachments: {
-    id: string
-    fileUrl: string
-    fileType: string
-    fileName: string
-    fileSize: number
-  }[]
-}
-
-type RawMessage = Awaited<ReturnType<PrismaService['message']['findMany']>>[number] & {
-  attachments: {
-    id: string
-    fileUrl: string
-    fileType: string
-    fileName: string
-    fileSize: number
-  }[]
-}
+type MessageSelectPayload = Prisma.MessageGetPayload<{ select: typeof MESSAGE_SELECT }>
 
 @Injectable()
 export class MessagesRepository {
@@ -116,7 +99,11 @@ export class MessagesRepository {
     return Promise.all(messages.map((m) => this.resolveAttachmentUrls(m)))
   }
 
-  async findManyByChannelId(channelId: string, cursor?: string, limit = 50) {
+  async findManyByChannelId(
+    channelId: string,
+    cursor?: string,
+    limit = 50,
+  ): Promise<MessageSelectPayload[]> {
     const rows = await this.prisma.message.findMany({
       where: { channelId, threadId: null, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -124,7 +111,7 @@ export class MessagesRepository {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: MESSAGE_SELECT,
     })
-    return this.resolveMany(rows as unknown as RawMessage[])
+    return this.resolveMany(rows)
   }
 
   async findById(messageId: string) {
@@ -136,39 +123,48 @@ export class MessagesRepository {
       },
     })
     if (!row) return null
-    return this.resolveAttachmentUrls(row as unknown as RawMessage & { userId: string })
+    return this.resolveAttachmentUrls(row)
   }
 
-  async create(channelId: string, userId: string, dto: CreateMessageDto) {
+  async create(
+    channelId: string,
+    userId: string,
+    dto: CreateMessageDto,
+  ): Promise<MessageSelectPayload> {
     if (!dto.attachments || dto.attachments.length === 0) {
       const row = await this.prisma.message.create({
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
         select: MESSAGE_SELECT,
       })
-      return this.resolveAttachmentUrls(row as unknown as RawMessage)
+      return this.resolveAttachmentUrls(row)
     }
 
     // 添付ファイルがある場合はメッセージと添付を $transaction で同時作成
-    const row = await this.prisma.$transaction(async (tx) => {
+    // CI環境でのPrismaの二重インストール型不一致を回避するため any キャストを使用
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+    const row = (await this.prisma.$transaction(async (tx: any) => {
       const message = await tx.message.create({
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
         select: { id: true },
       })
       await tx.messageAttachment.createMany({
-        data: dto.attachments!.map((a) => ({
-          messageId: message.id,
-          fileUrl: a.s3Key, // S3 キーを DB に保存
-          fileType: a.fileType,
-          fileName: a.fileName,
-          fileSize: a.fileSize,
-        })),
+        data: dto.attachments!.map(
+          (a: { s3Key: string; fileType: string; fileName: string; fileSize: number }) => ({
+            messageId: message.id,
+            fileUrl: a.s3Key,
+            fileType: a.fileType,
+            fileName: a.fileName,
+            fileSize: a.fileSize,
+          }),
+        ),
       })
       return tx.message.findUniqueOrThrow({
         where: { id: message.id },
         select: MESSAGE_SELECT,
       })
-    })
-    return this.resolveAttachmentUrls(row as unknown as RawMessage)
+    })) as MessageSelectPayload
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+    return this.resolveAttachmentUrls(row)
   }
 
   async update(messageId: string, content: string) {
@@ -177,7 +173,7 @@ export class MessagesRepository {
       data: { content, editedAt: new Date() },
       select: MESSAGE_SELECT,
     })
-    return this.resolveAttachmentUrls(row as unknown as RawMessage)
+    return this.resolveAttachmentUrls(row)
   }
 
   async softDelete(messageId: string) {
@@ -188,7 +184,11 @@ export class MessagesRepository {
     })
   }
 
-  async findRepliesByMessageId(parentMessageId: string, cursor?: string, limit = 50) {
+  async findRepliesByMessageId(
+    parentMessageId: string,
+    cursor?: string,
+    limit = 50,
+  ): Promise<MessageSelectPayload[]> {
     const rows = await this.prisma.message.findMany({
       where: { threadId: parentMessageId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -196,6 +196,6 @@ export class MessagesRepository {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: MESSAGE_SELECT,
     })
-    return this.resolveMany(rows as unknown as RawMessage[])
+    return this.resolveMany(rows)
   }
 }

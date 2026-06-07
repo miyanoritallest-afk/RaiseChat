@@ -57,7 +57,8 @@ export class AuthService {
       throw new UnauthorizedException('ユーザー名またはパスワードが正しくありません')
     }
 
-    const { passwordHash: _, ...safeUser } = user
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _passwordHash, ...safeUser } = user
     const token = this.jwtService.sign({ sub: safeUser.id, username: safeUser.username })
     return { token, user: safeUser }
   }

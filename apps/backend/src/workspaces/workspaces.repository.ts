@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
@@ -60,7 +61,7 @@ export class WorkspacesRepository {
   }
 
   async createWithGeneralChannel(data: { name: string; description?: string; ownerId: string }) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const workspace = await tx.workspace.create({
         data: {
           name: data.name,
@@ -95,7 +96,7 @@ export class WorkspacesRepository {
   }
 
   async joinByInviteCode(inviteCode: string, userId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const workspace = await tx.workspace.findUnique({
         where: { inviteCode },
         select: {

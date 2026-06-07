@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { NotificationType } from '@prisma/client'
+import { NotificationType } from '.prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { NotificationsRepository } from './notifications.repository'
 import { GetNotificationsDto } from './dto/get-notifications.dto'
@@ -57,7 +57,7 @@ export class NotificationsService {
     })
 
     await Promise.all(
-      channelMembers.map((member) =>
+      channelMembers.map((member: { userId: string }) =>
         this.notificationsRepository.createIfNotExists({
           type: NotificationType.MENTION,
           userId: member.userId,
@@ -102,7 +102,7 @@ export class NotificationsService {
     })
 
     await Promise.all(
-      members.map((member) =>
+      members.map((member: { userId: string }) =>
         this.notificationsRepository.createIfNotExists({
           type: NotificationType.UNREAD,
           userId: member.userId,
