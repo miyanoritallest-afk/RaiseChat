@@ -146,7 +146,11 @@ export class MessagesRepository {
     return this.resolveAttachmentUrls(row)
   }
 
-  async create(channelId: string, userId: string, dto: CreateMessageDto) {
+  async create(
+    channelId: string,
+    userId: string,
+    dto: CreateMessageDto,
+  ): Promise<MessageSelectPayload> {
     if (!dto.attachments || dto.attachments.length === 0) {
       const row = await this.prisma.message.create({
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
@@ -156,7 +160,8 @@ export class MessagesRepository {
     }
 
     // 添付ファイルがある場合はメッセージと添付を $transaction で同時作成
-    const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = (await this.prisma.$transaction(async (tx: any) => {
       const message = await tx.message.create({
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
         select: { id: true },
@@ -174,7 +179,7 @@ export class MessagesRepository {
         where: { id: message.id },
         select: MESSAGE_SELECT,
       })
-    })
+    })) as MessageSelectPayload
     return this.resolveAttachmentUrls(row)
   }
 
