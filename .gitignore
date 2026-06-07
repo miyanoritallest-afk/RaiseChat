@@ -28,3 +28,9 @@ Thumbs.db
 
 # Prisma generated client (コンテナ内に生成される)
 apps/backend/node_modules/.prisma/
+
+# Playwright
+apps/frontend/playwright/.auth/*.json
+apps/frontend/playwright-report/
+apps/frontend/test-results/
+apps/backend/coverage/
