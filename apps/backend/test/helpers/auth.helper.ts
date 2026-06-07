@@ -3,8 +3,10 @@ import { INestApplication } from '@nestjs/common'
 
 let counter = 0
 
-export function uniqueUsername(prefix = 'user'): string {
-  return `${prefix}_${Date.now()}_${++counter}`
+export function uniqueUsername(prefix = 'u'): string {
+  // MaxLength(20) 制約に合わせて短いユーザー名を生成 (例: u_3456_1)
+  const ts = String(Date.now()).slice(-4)
+  return `${prefix}_${ts}_${++counter}`
 }
 
 export async function createTestUser(

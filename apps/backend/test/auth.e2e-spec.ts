@@ -3,11 +3,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common'
 import request from 'supertest'
 import { AppModule } from '../src/app.module'
 import { createTestUser, authHeader, uniqueUsername } from './helpers/auth.helper'
+import { cleanDatabase } from './helpers/db.helper'
 
 describe('Auth (integration)', () => {
   let app: INestApplication
 
   beforeAll(async () => {
+    await cleanDatabase()
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile()

@@ -6,6 +6,10 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "setupFiles": ["<rootDir>/jest-setup.ts"],
+  "moduleNameMapper": {
+    "^\\.prisma/client$": "<rootDir>/../../../node_modules/.prisma/client/index.js"
+  },
   "globalSetup": "<rootDir>/global-setup.ts",
   "globalTeardown": "<rootDir>/global-teardown.ts",
   "testTimeout": 30000

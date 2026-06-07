@@ -4,11 +4,14 @@ import request from 'supertest'
 import { AppModule } from '../src/app.module'
 import { createTestUser, authHeader } from './helpers/auth.helper'
 import { createTestWorkspace, createTestChannel } from './helpers/seed.helper'
+import { cleanDatabase } from './helpers/db.helper'
 
 describe('Messages (integration)', () => {
   let app: INestApplication
 
   beforeAll(async () => {
+    await cleanDatabase()
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile()

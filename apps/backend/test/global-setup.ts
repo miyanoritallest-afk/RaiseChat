@@ -5,13 +5,13 @@ import * as path from 'path'
 export default function globalSetup() {
   dotenv.config({ path: path.resolve(__dirname, '../.env.test') })
 
-  // テスト用DBをクリーンな状態にリセット
-  execSync('npx prisma migrate reset --force --skip-seed --schema ../../prisma/schema.prisma', {
-    cwd: path.resolve(__dirname, '..'),
-    env: {
-      ...process.env,
-      DATABASE_URL: process.env.DATABASE_URL,
-    },
+  const cwd = path.resolve(__dirname, '..')
+  const env = { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
+
+  // テスト用DBにスキーマを強制適用してクリーンな状態にする
+  execSync('npx prisma db push --force-reset --schema ../../prisma/schema.prisma', {
+    cwd,
+    env,
     stdio: 'inherit',
   })
 }

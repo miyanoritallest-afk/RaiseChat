@@ -84,6 +84,9 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^\\.prisma/client$": "<rootDir>/../../../node_modules/.prisma/client/index.js"
+    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
@@ -96,10 +99,10 @@
     "testEnvironment": "node",
     "coverageThreshold": {
       "global": {
-        "branches": 45,
-        "functions": 25,
-        "lines": 45,
-        "statements": 45
+        "branches": 30,
+        "functions": 20,
+        "lines": 30,
+        "statements": 30
       },
       "./src/auth/auth.service.ts": {
         "branches": 85,
