@@ -11,7 +11,7 @@ function uniqueUser(prefix = 'dm') {
 test.use({ storageState: { cookies: [], origins: [] } })
 
 test.describe('DM機能 (E2E)', () => {
-  test('userAからuserBへDMを送信できる', async ({ page, browser }) => {
+  test('userAからuserBへDMを送信できる', async ({ page }) => {
     const userAName = uniqueUser('dmA')
     const userBName = uniqueUser('dmB')
 

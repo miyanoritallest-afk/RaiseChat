@@ -23,7 +23,7 @@ export function useNotificationSocket() {
   useEffect(() => {
     const socket = socketRef.current
 
-    const onNotificationReceived = (_payload: NotificationReceivedPayload) => {
+    const onNotificationReceived = (_payload: NotificationReceivedPayload): void => {
       incrementUnreadCount()
       // 未読数の正確な値をサーバーから再取得して同期する
       void notificationApi
