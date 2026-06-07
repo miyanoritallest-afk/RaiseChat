@@ -4,7 +4,8 @@ const BASE_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 let counter = 0
 function uniqueUser(prefix = 'dm') {
-  return `${prefix}_${Date.now()}_${++counter}`
+  const ts = String(Date.now()).slice(-5)
+  return `${prefix}${ts}${++counter}`
 }
 
 // DMテストは2コンテキスト不要なので storageState なしで実行
@@ -57,10 +58,11 @@ test.describe('DM機能 (E2E)', () => {
     if (dmRes.ok) {
       const dm = (await dmRes.json()) as { id: string }
 
-      // ブラウザでDMページを開く
+      // ブラウザでDMページを開く（ルート: /[workspaceId]/dm/[dmRoomId]）
       await page.goto('/')
       await page.evaluate((t: string) => localStorage.setItem('token', t), tokenA)
-      await page.goto(`/dm-rooms/${dm.id}`)
+      await page.reload()
+      await page.goto(`/${ws.id}/dm/${dm.id}`)
 
       // DM入力欄が存在することを確認（ページの構造に依存）
       const hasInput = await page

@@ -9,7 +9,8 @@ const BASE_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 let counter = 0
 function uniqueUser(prefix = 'e2e') {
-  return `${prefix}_${Date.now()}_${++counter}`
+  const ts = String(Date.now()).slice(-5)
+  return `${prefix}${ts}${++counter}`
 }
 
 test.describe('Auth flow (E2E)', () => {

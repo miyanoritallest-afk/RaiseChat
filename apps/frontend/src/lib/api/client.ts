@@ -2,14 +2,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown
+  skipAuthRedirect?: boolean
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { skipAuthRedirect, ...fetchOptions } = options
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...(fetchOptions.headers as Record<string, string>),
   }
 
   if (token) {
@@ -17,12 +19,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
     headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body: fetchOptions.body !== undefined ? JSON.stringify(fetchOptions.body) : undefined,
   })
 
-  if (response.status === 401) {
+  if (response.status === 401 && !skipAuthRedirect) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token')
       window.location.href = '/login'
@@ -36,6 +38,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     }
     const message = Array.isArray(error.message) ? error.message.join(', ') : error.message
     throw new Error(message)
+  }
+
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T
   }
 
   return response.json() as Promise<T>

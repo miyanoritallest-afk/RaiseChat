@@ -5,6 +5,7 @@ import type { Message } from '@/types/message'
 import { useAuthStore } from '@/stores/auth.store'
 import { messageApi } from '@/lib/api/message.api'
 import { useMessageStore } from '@/stores/message.store'
+import { getSocket } from '@/lib/socket/socket.client'
 import { useThreadStore } from '@/stores/thread.store'
 import { useReaction } from '@/hooks/useReaction'
 import { usePins } from '@/hooks/usePins'
@@ -52,9 +53,10 @@ export function MessageItem({ message, wsId, channelId }: Props) {
   }
 
   const handleDelete = async () => {
-    if (!confirm('このメッセージを削除しますか？')) return
     try {
       await messageApi.deleteMessage(wsId, channelId, message.id)
+      // Socket.ioで全チャンネルメンバーに削除を通知
+      getSocket().emit('message:delete', { messageId: message.id, channelId })
       removeMessage(message.id)
     } catch {
       // ignore
@@ -187,6 +189,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
                 編集
               </button>
               <button
+                data-testid="delete-message-btn"
                 onClick={() => void handleDelete()}
                 className="px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
               >
