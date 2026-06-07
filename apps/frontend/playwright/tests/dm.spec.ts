@@ -28,7 +28,7 @@ test.describe('DM機能 (E2E)', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: userBName, displayName: userBName, password: 'TestPass1!' }),
     })
-    const { user: userB } = (await resB.json()) as { token: string; user: { id: string } }
+    const { token: tokenB, user: userB } = (await resB.json()) as { token: string; user: { id: string } }
 
     // ワークスペース作成・参加
     const wsRes = await fetch(`${BASE_API}/workspaces`, {
@@ -42,7 +42,7 @@ test.describe('DM機能 (E2E)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${(await resB.json().catch(() => ({ token: '' }))) as unknown as string}`,
+        Authorization: `Bearer ${tokenB}`,
       },
       body: JSON.stringify({ inviteCode: ws.inviteCode }),
     })
