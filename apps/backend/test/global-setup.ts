@@ -2,7 +2,7 @@ import { execSync } from 'child_process'
 import * as dotenv from 'dotenv'
 import * as path from 'path'
 
-export default async function globalSetup() {
+export default function globalSetup() {
   dotenv.config({ path: path.resolve(__dirname, '../.env.test') })
 
   // テスト用DBをクリーンな状態にリセット

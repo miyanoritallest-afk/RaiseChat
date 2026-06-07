@@ -8,6 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    exclude: ['**/node_modules/**', '**/playwright/**', '**/.next/**'],
     coverage: {
       provider: 'v8',
       include: ['src/stores/**', 'src/hooks/**'],

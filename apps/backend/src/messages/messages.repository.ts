@@ -52,26 +52,6 @@ const MESSAGE_SELECT = {
 
 type MessageSelectPayload = Prisma.MessageGetPayload<{ select: typeof MESSAGE_SELECT }>
 
-type MessageRow = Awaited<ReturnType<PrismaService['message']['findUniqueOrThrow']>> & {
-  attachments: {
-    id: string
-    fileUrl: string
-    fileType: string
-    fileName: string
-    fileSize: number
-  }[]
-}
-
-type RawMessage = Awaited<ReturnType<PrismaService['message']['findMany']>>[number] & {
-  attachments: {
-    id: string
-    fileUrl: string
-    fileType: string
-    fileName: string
-    fileSize: number
-  }[]
-}
-
 @Injectable()
 export class MessagesRepository {
   constructor(
@@ -160,26 +140,30 @@ export class MessagesRepository {
     }
 
     // 添付ファイルがある場合はメッセージと添付を $transaction で同時作成
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // CI環境でのPrismaの二重インストール型不一致を回避するため any キャストを使用
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
     const row = (await this.prisma.$transaction(async (tx: any) => {
       const message = await tx.message.create({
         data: { channelId, userId, content: dto.content, threadId: dto.threadId },
         select: { id: true },
       })
       await tx.messageAttachment.createMany({
-        data: dto.attachments!.map((a) => ({
-          messageId: message.id,
-          fileUrl: a.s3Key, // S3 キーを DB に保存
-          fileType: a.fileType,
-          fileName: a.fileName,
-          fileSize: a.fileSize,
-        })),
+        data: dto.attachments!.map(
+          (a: { s3Key: string; fileType: string; fileName: string; fileSize: number }) => ({
+            messageId: message.id,
+            fileUrl: a.s3Key,
+            fileType: a.fileType,
+            fileName: a.fileName,
+            fileSize: a.fileSize,
+          }),
+        ),
       })
       return tx.message.findUniqueOrThrow({
         where: { id: message.id },
         select: MESSAGE_SELECT,
       })
     })) as MessageSelectPayload
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
     return this.resolveAttachmentUrls(row)
   }
 

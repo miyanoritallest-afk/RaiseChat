@@ -50,7 +50,7 @@ describe('useSocket', () => {
   it('イベントハンドラが正しく登録される', () => {
     renderHook(() => useSocket('ch-1', 'ws-1'))
 
-    const registeredEvents = mockSocket.on.mock.calls.map(([event]: [string]) => event)
+    const registeredEvents = mockSocket.on.mock.calls.map((args: string[]) => args[0])
     expect(registeredEvents).toContain('message:received')
     expect(registeredEvents).toContain('message:updated')
     expect(registeredEvents).toContain('message:deleted')
@@ -62,7 +62,7 @@ describe('useSocket', () => {
     const { unmount } = renderHook(() => useSocket('ch-1', 'ws-1'))
     unmount()
 
-    const removedEvents = mockSocket.off.mock.calls.map(([event]: [string]) => event)
+    const removedEvents = mockSocket.off.mock.calls.map((args: string[]) => args[0])
     expect(removedEvents).toContain('message:received')
     expect(removedEvents).toContain('message:updated')
     expect(removedEvents).toContain('message:deleted')

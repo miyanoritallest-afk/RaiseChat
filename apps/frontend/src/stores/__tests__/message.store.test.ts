@@ -7,7 +7,6 @@ function makeMessage(id: string, content = `Message ${id}`): Message {
     id,
     content,
     channelId: 'ch-1',
-    userId: 'user-1',
     threadId: null,
     user: {
       id: 'user-1',
@@ -20,10 +19,8 @@ function makeMessage(id: string, content = `Message ${id}`): Message {
     attachments: [],
     _count: { replies: 0 },
     replies: [],
-    isDeleted: false,
     editedAt: null,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   }
 }
 
