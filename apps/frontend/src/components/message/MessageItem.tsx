@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import type { Message } from '@/types/message'
 import { useAuthStore } from '@/stores/auth.store'
 import { messageApi } from '@/lib/api/message.api'
@@ -10,6 +11,8 @@ import { useThreadStore } from '@/stores/thread.store'
 import { useReaction } from '@/hooks/useReaction'
 import { usePins } from '@/hooks/usePins'
 import { usePinStore } from '@/stores/pin.store'
+import { Pin, PinOff, MessageSquare, Pencil, Trash2 } from 'lucide-react'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { ReactionBar } from './ReactionBar'
 import { EmojiPickerButton } from './EmojiPickerButton'
 import { AttachmentDisplay } from './AttachmentDisplay'
@@ -69,7 +72,12 @@ export function MessageItem({ message, wsId, channelId }: Props) {
   }
 
   return (
-    <div className="group flex gap-3 px-4 py-1 hover:bg-gray-50">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15 }}
+      className="group flex gap-3 px-4 py-1 hover:bg-gray-50"
+    >
       <div className="w-9 h-9 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center text-sm font-medium text-gray-600 mt-0.5">
         {message.user.displayName.charAt(0).toUpperCase()}
       </div>
@@ -158,47 +166,59 @@ export function MessageItem({ message, wsId, channelId }: Props) {
       </div>
 
       {!isEditing && (
-        <div className="hidden group-hover:flex items-center gap-1 self-start mt-1">
-          <EmojiPickerButton onSelect={(emoji) => toggleReaction(message.id, emoji)} />
-          <button
-            onClick={() => (isPinned ? unpin(message.id) : pin(message.id))}
-            className={`px-2 py-1 text-xs rounded ${
-              isPinned
-                ? 'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-            title={isPinned ? 'ピン留めを解除' : 'ピン留め'}
-          >
-            {isPinned ? '📌' : '📌'}
-          </button>
-          {/* 返信がない場合のみ返信ボタンをホバー時に表示（返信があれば本文下に常時表示） */}
-          {!hasReplies && (
-            <button
-              onClick={() => openThread(message)}
-              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-            >
-              返信
-            </button>
-          )}
-          {isAuthor && (
-            <>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+        <TooltipProvider>
+          <div className="hidden group-hover:flex items-center gap-0.5 self-start mt-1">
+            <EmojiPickerButton onSelect={(emoji) => toggleReaction(message.id, emoji)} />
+            <Tooltip>
+              <TooltipTrigger
+                onClick={() => (isPinned ? unpin(message.id) : pin(message.id))}
+                className={`p-1.5 rounded hover:bg-gray-100 ${
+                  isPinned
+                    ? 'text-yellow-600 hover:text-yellow-800'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
-                編集
-              </button>
-              <button
-                data-testid="delete-message-btn"
-                onClick={() => void handleDelete()}
-                className="px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-              >
-                削除
-              </button>
-            </>
-          )}
-        </div>
+                {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+              </TooltipTrigger>
+              <TooltipContent>{isPinned ? 'ピン留めを解除' : 'ピン留め'}</TooltipContent>
+            </Tooltip>
+            {!hasReplies && (
+              <Tooltip>
+                <TooltipTrigger
+                  onClick={() => openThread(message)}
+                  className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>返信</TooltipContent>
+              </Tooltip>
+            )}
+            {isAuthor && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger
+                    onClick={() => setIsEditing(true)}
+                    className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent>編集</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    data-testid="delete-message-btn"
+                    onClick={() => void handleDelete()}
+                    className="p-1.5 rounded hover:bg-red-50 text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent>削除</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+          </div>
+        </TooltipProvider>
       )}
-    </div>
+    </motion.div>
   )
 }
