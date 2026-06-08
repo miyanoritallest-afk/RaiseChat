@@ -1,0 +1,41 @@
+# ビルドコンテキストはリポジトリルート（monorepoのprisma/にアクセスするため）
+# docker build --file apps/backend/Dockerfile.prod .
+
+# ── Stage 1: ビルド ──────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY apps/backend/package*.json ./
+RUN npm ci
+
+# monorepoルートのPrismaスキーマを取得してクライアント生成
+COPY prisma ./prisma
+RUN npx prisma generate --schema ./prisma/schema.prisma
+
+# ソースコードをコピーしてビルド
+COPY apps/backend/. .
+RUN npm run build
+
+# ── Stage 2: 本番ランタイム ──────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# 本番依存のみインストール
+COPY apps/backend/package*.json ./
+RUN npm ci --omit=dev
+
+# ビルド成果物をコピー
+COPY --from=builder /app/dist ./dist
+
+# Prismaクライアント（生成済み）をコピー
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
+# マイグレーション実行用にスキーマをコピー
+COPY --from=builder /app/prisma ./prisma
+
+EXPOSE 4000
+
+CMD ["node", "dist/main"]

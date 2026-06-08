@@ -13,7 +13,7 @@ Slack風チャットアプリケーション。
 | バックエンド | NestJS・TypeScript・Socket.io・JWT + bcrypt |
 | データベース | PostgreSQL・Prisma |
 | ストレージ | AWS S3 |
-| ホスティング | Vercel（フロント）・Render（バックエンド） |
+| ホスティング | AWS（EC2・ALB・RDS・S3・ECR） |
 | 開発環境 | Docker・ESLint・Prettier・Husky |
 
 ---
@@ -66,10 +66,10 @@ docker-compose up
 
 | フェーズ | 内容 | 状態 |
 |---------|------|------|
-| フェーズA | テスト戦略（静的解析・単体・結合・E2E・パフォーマンス） | 🚧 進行中 |
-| フェーズB | CI/CDパイプライン構築 | ⏳ 未着手 |
-| フェーズC | UI/UX改善・手動テスト | ⏳ 未着手 |
-| フェーズD | インフラ構築・デプロイ（Vercel + Render） | ⏳ 未着手 |
+| フェーズA | テスト戦略（静的解析・単体・結合・E2E・パフォーマンス） | ✅ 完了 |
+| フェーズB | CI/CDパイプライン構築（nightly有効化・deploy.yml雛形・本番Dockerfile） | 🚧 進行中 |
+| フェーズC | UI/UX改善（shadcn/ui・Skeletonローダー・アニメーション） | ⏳ 未着手 |
+| フェーズD | インフラ構築・デプロイ（AWS Terraform: EC2・ALB・RDS・S3・ECR） | ⏳ 未着手 |
 | フェーズE | セキュリティ強化・パフォーマンス計測 | ⏳ 未着手 |
 
 ### 現場対応追加項目

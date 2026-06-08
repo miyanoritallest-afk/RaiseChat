@@ -10,8 +10,6 @@ jobs:
   integration-test:
     name: Backend — Integration tests (real DB)
     runs-on: ubuntu-latest
-    # A-4実装後に有効化
-    if: false
     services:
       postgres:
         image: postgres:16-alpine
@@ -50,7 +48,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5433/raisechat_test
 
       - name: Run integration tests
-        run: npm run test:e2e
+        run: npm run test:integration
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5433/raisechat_test
           JWT_SECRET: nightly-ci-test-secret
@@ -58,8 +56,20 @@ jobs:
   e2e-test:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
-    # A-6実装後に有効化
-    if: false
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: raisechat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -67,30 +77,65 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies (root)
+      - name: Install root dependencies
         run: npm ci
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: apps/backend
+
+      - name: Install frontend dependencies
+        run: npm ci --legacy-peer-deps
+        working-directory: apps/frontend
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: apps/frontend
 
+      - name: Generate Prisma client
+        run: npx prisma generate --schema ../../prisma/schema.prisma
+        working-directory: apps/backend
+
+      - name: Run DB migrations
+        run: npx prisma migrate deploy --schema ../../prisma/schema.prisma
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/raisechat_test
+
+      - name: Build backend
+        run: npm run build
+        working-directory: apps/backend
+
       - name: Start backend
         run: npm run start:prod &
         working-directory: apps/backend
         env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/raisechat_test
+          JWT_SECRET: nightly-ci-test-secret
+          PORT: 4000
+          FRONTEND_URL: http://localhost:3000
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: apps/frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
 
       - name: Start frontend
-        run: npx vite preview &
+        run: npm run start &
         working-directory: apps/frontend
+        env:
+          PORT: 3000
 
-      - name: Wait for services
-        run: sleep 10
+      - name: Wait for services to be ready
+        run: npx wait-on http://localhost:4000/health http://localhost:3000 --timeout 60000
 
       - name: Run Playwright tests
-        run: npx playwright test --project=chromium
+        run: npx playwright test --project=chromium --project=realtime
         working-directory: apps/frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          API_BASE_URL: http://localhost:4000
 
       - name: Upload Playwright report
         if: always()
@@ -103,19 +148,64 @@ jobs:
   performance-test:
     name: Performance tests (k6 smoke)
     runs-on: ubuntu-latest
-    # A-7実装後に有効化
-    if: false
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: raisechat_perf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: apps/backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema ../../prisma/schema.prisma
+        working-directory: apps/backend
+
+      - name: Run DB migrations
+        run: npx prisma migrate deploy --schema ../../prisma/schema.prisma
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/raisechat_perf
+
+      - name: Build backend
+        run: npm run build
+        working-directory: apps/backend
+
+      - name: Start backend
+        run: npm run start:prod &
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/raisechat_perf
+          JWT_SECRET: nightly-ci-test-secret
+          PORT: 4000
+          FRONTEND_URL: http://localhost:3000
+
+      - name: Wait for backend to be ready
+        run: npx wait-on http://localhost:4000/health --timeout 30000
+        working-directory: apps/backend
 
       - name: Run k6 smoke test
         uses: grafana/k6-action@v0.3.1
         with:
           filename: k6/smoke.js
         env:
-          BASE_URL: ${{ secrets.TEST_BASE_URL }}
-          TEST_USERNAME: ${{ secrets.K6_TEST_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.K6_TEST_PASSWORD }}
+          BASE_URL: http://localhost:4000
 
       - name: Upload k6 results
         if: always()
