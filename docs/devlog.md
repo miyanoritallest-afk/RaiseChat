@@ -1176,3 +1176,110 @@ Swagger/Sentryを先に組む理由：本番起動後に後付けするより、
 - APIリクエスト中に何も表示しない現状は「アプリが固まったように見える」UXの問題
 - Skeletonローダーは実装コストが低く（0.5日）、体感パフォーマンスの向上効果が大きい
 - shadcn/uiに `Skeleton` コンポーネントが含まれているため、shadcn/ui導入と同時に実現できる
+
+---
+
+## 2026-06-08 フェーズB・フェーズC 実装完了
+
+### 78. フェーズB：nightly.yml を有効化する際に e2e-test ジョブを全面書き直した理由
+
+**判断**：`if: false` を削除するだけでなく、e2e-test ジョブ全体を書き直した。
+
+**書き直しが必要だった理由**：
+- フロントエンドが Vite から Next.js に移行済みなのに、起動コマンドが `vite preview` のままだった
+- バックエンドのビルドステップが丸ごと抜けており、`dist/main.js` が存在しないまま起動を試みていた
+- `sleep 10` でサーバー起動を待っていたが、CI環境では起動時間が不定のため競合状態が発生する
+
+**解決策**：
+- フロントエンド起動を `npm run build && npm start` に修正
+- バックエンドも `npm run build` → `npm run start:prod` の順で実行
+- `npx wait-on http://localhost:4000/health http://localhost:3000 --timeout 60000` でポーリング待機に切り替え
+- `/health` エンドポイントを `app.controller.ts` に追加して wait-on が使えるようにした
+
+**学び**：`sleep N` はローカルでは通るが CI では信頼できない。wait-on のようにポート/HTTPで待機する方式が本番品質の CI パターン。
+
+---
+
+### 79. フェーズB：deploy.yml を「骨格だけ」作った理由
+
+**判断**：AWS リソースが存在しない段階でも `deploy.yml` を作成し、中身は `echo "TODO: ..."` のプレースホルダーにした。
+
+**理由**：
+- ワークフローファイルのディレクトリ構成・ジョブ名・依存関係（`needs: [build-backend, build-frontend]`）はインフラ構築後に変えない部分
+- 今のうちに骨格を作っておくことで、フェーズD（Terraform）完了後に「TODO のコマンドをアンコメントするだけ」で済む
+- CI が常にグリーンであることを維持しつつ、将来の実装場所を明示できる
+
+**構成**：`build-backend` → `build-frontend` → `deploy`（3ジョブ直列）。OIDC 認証と ECR ログインのステップだけ書いて、docker build/push は TODO コメント。
+
+---
+
+### 80. フェーズB：本番用 Dockerfile をマルチステージビルドにした理由
+
+**判断**：バックエンド・フロントエンドともにビルダーとランナーを分離したマルチステージ構成にした。
+
+**バックエンド（NestJS）の構成**：
+```
+builder: node:20-alpine → npm ci → prisma generate → npm run build
+runner:  node:20-alpine → npm ci --omit=dev → dist/ と .prisma/ のみコピー
+```
+
+**フロントエンド（Next.js）の構成**：
+```
+deps:    node:20-alpine → npm ci --legacy-peer-deps
+builder: deps からのコピー → npm run build
+runner:  .next/standalone のみコピー（output: 'standalone' 設定が前提）
+```
+
+**マルチステージにした理由**：
+- ビルドツール（TypeScript コンパイラ、Prisma CLI など）を最終イメージから除外できる
+- バックエンドの場合、`devDependencies` と `node_modules/` の大部分を除いた `dist/` だけが本番に入る
+- セキュリティ面でも攻撃対象となるツールを減らせる
+
+**`legacy-peer-deps` が必要な理由**：`@emoji-mart/react@1.1.1` が React 18 以下を要求しているが、プロジェクトは React 19.2.4 を使用。npm の strict peer dependency チェックを回避するために `.npmrc` と Dockerfile の `npm ci` に `--legacy-peer-deps` を追加した。
+
+---
+
+### 81. フェーズC：shadcn/ui の init が Windows 環境で失敗した際の対処
+
+**状況**：`npx shadcn@latest init` が Windows 上で exit code 3221226505 で終了した。
+
+**根本原因**：shadcn の init は内部で新しい npm プロセスを spawn するが、プロジェクトルートの `.npmrc`（`legacy-peer-deps=true`）を引き継がなかった。`@emoji-mart/react` の peer dependency 競合でインストールが失敗した。
+
+**対処**：
+1. `npm install --legacy-peer-deps clsx tailwind-merge class-variance-authority tw-animate-css lucide-react "@base-ui/react"` を手動実行
+2. `npx shadcn@latest add button input textarea skeleton badge tooltip` を別途実行（コンポーネント追加は同じ競合を踏まなかった）
+3. init が途中で失敗したため生成されなかった `src/lib/utils.ts`（`cn()` ユーティリティ）を手動作成
+
+**学び**：shadcn/ui の最新版（v4系）は `@base-ui/react` ベースの "base-nova" スタイルを採用しており、従来の Radix UI とは異なる。Button は `ButtonPrimitive from "@base-ui/react/button"` を使う構造になっている。
+
+---
+
+### 82. フェーズC：メッセージアクションバーを lucide-react アイコン + Tooltip に変えた理由
+
+**判断**：「編集」「削除」「返信」などテキストのみのボタンを、lucide-react アイコン + shadcn/ui Tooltip に置き換えた。
+
+**変更前の問題**：
+- テキストボタンはホバーエリアが大きく、メッセージ行全体が視覚的にうるさくなる
+- アクションが何をするかは操作してみないとわかりにくい（編集？削除？の区別が文字だけ）
+
+**変更後**：
+- `Pencil / Trash2 / MessageSquare / Pin / PinOff` アイコンで視覚的に識別できる
+- `<Tooltip>` でホバー時に日本語説明を表示するためキーボード非利用ユーザーにも意図が伝わる
+- ボタンサイズが `p-1.5`（24px 程度）に統一され、ホバーエリアが適切になった
+
+---
+
+### 83. フェーズC：framer-motion の適用範囲を最小限に絞った理由
+
+**判断**：framer-motion を導入したが、アニメーションを適用する箇所を2か所に限定した。
+
+**適用箇所**：
+1. `MessageItem` — 新着メッセージの `opacity: 0→1, y: 6→0`（duration: 0.15s）
+2. `MessageList` — チャンネル切り替え時の `AnimatePresence` + `opacity: 0→1`（duration: 0.1s）
+
+**絞った理由**：
+- アニメーションが多すぎると「重い・うるさい」という印象になる
+- メッセージの出現とチャンネル切り替えは「コンテンツが変わった」ことをユーザーに伝える必要がある場面で、アニメーションの価値が高い
+- サイドバーやフォームはアニメーションがなくても操作上の問題がなく、過剰になる
+
+**補足**：`AnimatePresence` の `mode="wait"` を使うことで、古いチャンネルのフェードアウトが完了してから新しいチャンネルがフェードインする。チャンネル切り替えのタイミングがユーザーに明確に伝わる。
