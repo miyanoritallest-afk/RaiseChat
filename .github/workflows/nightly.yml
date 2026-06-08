@@ -114,6 +114,8 @@ jobs:
           JWT_SECRET: nightly-ci-test-secret
           PORT: 4000
           FRONTEND_URL: http://localhost:3000
+          AWS_REGION: ap-northeast-1
+          AWS_S3_BUCKET_NAME: ci-dummy-bucket
 
       - name: Build frontend
         run: npm run build
@@ -195,6 +197,8 @@ jobs:
           JWT_SECRET: nightly-ci-test-secret
           PORT: 4000
           FRONTEND_URL: http://localhost:3000
+          AWS_REGION: ap-northeast-1
+          AWS_S3_BUCKET_NAME: ci-dummy-bucket
 
       - name: Wait for backend to be ready
         run: npx wait-on http://localhost:4000/health --timeout 30000
