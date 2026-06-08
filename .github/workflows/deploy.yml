@@ -1,0 +1,138 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# フェーズDでTerraformとAWSリソースが揃った時点で各ステップの "TODO" を実装に置き換える
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # Job 1: バックエンドDockerイメージをビルド → ECRにプッシュ
+  # ──────────────────────────────────────────────────────────────
+  build-backend:
+    name: Build & Push Backend Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC認証に必要
+      contents: read
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-northeast-1' }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        # TODO: フェーズD完了後（ECRリポジトリ作成後）に以下のコメントを解除して実装
+        # env:
+        #   ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        #   ECR_REPOSITORY: raisechat-backend
+        #   IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+        # run: |
+        #   docker build \
+        #     --file apps/backend/Dockerfile.prod \
+        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+        #     .
+        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        run: echo "TODO: docker build & push backend (フェーズD完了後に実装)"
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 2: フロントエンドDockerイメージをビルド → ECRにプッシュ
+  # ──────────────────────────────────────────────────────────────
+  build-frontend:
+    name: Build & Push Frontend Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-northeast-1' }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend image
+        # TODO: フェーズD完了後（ECRリポジトリ作成後）に以下のコメントを解除して実装
+        # env:
+        #   ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        #   ECR_REPOSITORY: raisechat-frontend
+        #   IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+        #   NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}   # ALB DNS名
+        # run: |
+        #   docker build \
+        #     --file apps/frontend/Dockerfile.prod \
+        #     --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+        #     .
+        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        run: echo "TODO: docker build & push frontend (フェーズD完了後に実装)"
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 3: EC2にSSM Session Manager経由でデプロイ
+  # Job 1 & 2 の完了を待って実行（直列）
+  # ──────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-northeast-1' }}
+
+      - name: Deploy via SSM Session Manager
+        # TODO: フェーズD完了後（EC2インスタンス作成後）に以下のコメントを解除して実装
+        # env:
+        #   EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        #   AWS_REGION: ${{ secrets.AWS_REGION }}
+        #   IMAGE_TAG: ${{ github.sha }}
+        # run: |
+        #   aws ssm send-command \
+        #     --instance-ids "$EC2_INSTANCE_ID" \
+        #     --document-name "AWS-RunShellScript" \
+        #     --parameters commands=[
+        #       "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com",
+        #       "cd /app && docker compose -f docker-compose.prod.yml pull",
+        #       "docker compose -f docker-compose.prod.yml up -d",
+        #       "docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy --schema ./prisma/schema.prisma"
+        #     ] \
+        #     --region "$AWS_REGION"
+        run: echo "TODO: SSM deploy to EC2 (フェーズD完了後に実装)"
