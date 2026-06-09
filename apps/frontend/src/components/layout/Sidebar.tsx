@@ -108,7 +108,7 @@ export function Sidebar() {
                   params.dmRoomId === room.id ? 'bg-gray-600 text-white' : 'text-gray-400'
                 }`}
               >
-                <span className="text-gray-500">@</span>
+                <span className="text-gray-500">{room.isGroup ? '#' : '@'}</span>
                 <span className="truncate">{displayName}</span>
               </Link>
             )

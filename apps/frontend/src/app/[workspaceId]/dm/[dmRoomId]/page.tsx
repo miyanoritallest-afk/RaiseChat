@@ -41,8 +41,24 @@ export default function DmPage() {
     <AppLayout workspaceId={params.workspaceId}>
       <div className="flex flex-col h-full">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2 flex-shrink-0">
-          <span className="text-gray-400">@</span>
+          <span className="text-gray-400">{currentRoom?.isGroup ? '👥' : '@'}</span>
           <span className="font-semibold text-gray-900">{displayName}</span>
+          {currentRoom?.isGroup && (
+            <div className="flex items-center gap-0.5 ml-1">
+              {currentRoom.members
+                .filter((m) => m.userId !== user?.id)
+                .slice(0, 5)
+                .map((m) => (
+                  <div
+                    key={m.userId}
+                    className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold border border-white"
+                    title={m.user.displayName}
+                  >
+                    {m.user.displayName.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
         <DmMessageList hasMore={hasMore} isLoading={isLoading} loadMore={loadMore} />
         {currentRoom && <DmMessageInput room={currentRoom} socket={socket} />}

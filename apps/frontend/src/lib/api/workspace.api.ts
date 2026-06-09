@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Workspace } from '@/types/workspace'
+import type { Workspace, WorkspaceMember } from '@/types/workspace'
 
 export const workspaceApi = {
   getMyWorkspaces: () => apiClient.get<Workspace[]>('/workspaces'),
@@ -11,4 +11,6 @@ export const workspaceApi = {
 
   joinWorkspace: (inviteCode: string) =>
     apiClient.post<Workspace>('/workspaces/join', { inviteCode }),
+
+  getMembers: (wsId: string) => apiClient.get<WorkspaceMember[]>(`/workspaces/${wsId}/members`),
 }

@@ -50,6 +50,10 @@ export type DmMessagesResponse = {
 // DM部屋の表示名を取得するユーティリティ関数
 export function getDmRoomDisplayName(room: DmRoom, myUserId: string): string {
   if (room.name) return room.name
+  if (room.isGroup) {
+    const others = room.members.filter((m) => m.userId !== myUserId)
+    return others.map((m) => m.user.displayName).join(', ') || 'グループDM'
+  }
   const other = room.members.find((m) => m.userId !== myUserId)
   return other?.user.displayName ?? 'Unknown'
 }
