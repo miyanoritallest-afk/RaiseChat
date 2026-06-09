@@ -4,7 +4,22 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import { MoreHorizontal, Pencil, Trash2, Check, X } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Check, X, GripVertical } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useChannelStore } from '@/stores/channel.store'
 import { useDmStore } from '@/stores/dm.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -73,6 +88,16 @@ function ChannelRow({
   const btnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: channel.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
   useEffect(() => {
     if (isRenaming) inputRef.current?.focus()
   }, [isRenaming])
@@ -118,11 +143,21 @@ function ChannelRow({
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={`group flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-gray-700 transition-colors ${
         isActive ? 'bg-gray-600 text-white' : 'text-gray-400'
       }`}
     >
-      <span className="text-gray-500 flex-shrink-0">#</span>
+      <button
+        {...attributes}
+        {...listeners}
+        className="hidden group-hover:flex items-center justify-center w-4 h-4 text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+        tabIndex={-1}
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-gray-500 flex-shrink-0 group-hover:hidden">#</span>
       {isRenaming ? (
         <div className="flex items-center gap-1 flex-1 min-w-0">
           <input
@@ -223,6 +258,16 @@ function DmRoomRow({
 
   const displayName = getDmRoomDisplayName(room, myUserId)
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: room.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
   useEffect(() => {
     if (isRenaming) inputRef.current?.focus()
   }, [isRenaming])
@@ -257,11 +302,23 @@ function DmRoomRow({
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={`group flex items-center gap-1 px-3 py-1.5 text-sm hover:bg-gray-700 transition-colors ${
         isActive ? 'bg-gray-600 text-white' : 'text-gray-400'
       }`}
     >
-      <span className="text-gray-500 flex-shrink-0">{room.isGroup ? '#' : '@'}</span>
+      <button
+        {...attributes}
+        {...listeners}
+        className="hidden group-hover:flex items-center justify-center w-4 h-4 text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+        tabIndex={-1}
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-gray-500 flex-shrink-0 group-hover:hidden">
+        {room.isGroup ? '#' : '@'}
+      </span>
       {isRenaming ? (
         <div className="flex items-center gap-1 flex-1 min-w-0">
           <input
@@ -337,13 +394,15 @@ function DmRoomRow({
 
 export function Sidebar() {
   const params = useParams<{ workspaceId: string; channelId?: string; dmRoomId?: string }>()
-  const { channels } = useChannelStore()
-  const { dmRooms } = useDmStore()
+  const { channels, reorderChannels } = useChannelStore()
+  const { dmRooms, reorderDmRooms } = useDmStore()
   const { user } = useAuthStore()
   const { unreadChannelIds, unreadDmRoomIds } = useNotificationStore()
   const [isDmModalOpen, setIsDmModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Cmd+K / Ctrl+K で検索モーダルを開く
   useEffect(() => {
@@ -356,6 +415,38 @@ export function Sidebar() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  const handleChannelDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = channels.findIndex((c) => c.id === active.id)
+    const newIndex = channels.findIndex((c) => c.id === over.id)
+    const newOrder = arrayMove(channels, oldIndex, newIndex)
+    const newIds = newOrder.map((c) => c.id)
+
+    // オプティミスティック更新
+    reorderChannels(newIds)
+
+    // バックグラウンドで永続化（失敗しても UI は巻き戻さない）
+    channelApi.reorderChannels(params.workspaceId, newIds).catch(() => {})
+  }
+
+  const handleDmDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = dmRooms.findIndex((r) => r.id === active.id)
+    const newIndex = dmRooms.findIndex((r) => r.id === over.id)
+    const newOrder = arrayMove(dmRooms, oldIndex, newIndex)
+    const newIds = newOrder.map((r) => r.id)
+
+    // オプティミスティック更新
+    reorderDmRooms(newIds)
+
+    // バックグラウンドで永続化
+    dmApi.reorderDmRooms(params.workspaceId, newIds).catch(() => {})
+  }
 
   return (
     <>
@@ -397,15 +488,26 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="overflow-y-auto py-2 flex-shrink-0 max-h-64">
-          {channels.map((ch) => (
-            <ChannelRow
-              key={ch.id}
-              channel={ch}
-              isActive={params.channelId === ch.id}
-              workspaceId={params.workspaceId}
-              isBold={unreadChannelIds.has(ch.id)}
-            />
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleChannelDragEnd}
+          >
+            <SortableContext
+              items={channels.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {channels.map((ch) => (
+                <ChannelRow
+                  key={ch.id}
+                  channel={ch}
+                  isActive={params.channelId === ch.id}
+                  workspaceId={params.workspaceId}
+                  isBold={unreadChannelIds.has(ch.id)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </nav>
 
         {/* DMセクション */}
@@ -420,16 +522,27 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto py-1">
-          {dmRooms.map((room) => (
-            <DmRoomRow
-              key={room.id}
-              room={room}
-              isActive={params.dmRoomId === room.id}
-              workspaceId={params.workspaceId}
-              myUserId={user?.id ?? ''}
-              isBold={unreadDmRoomIds.has(room.id)}
-            />
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDmDragEnd}
+          >
+            <SortableContext
+              items={dmRooms.map((r) => r.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {dmRooms.map((room) => (
+                <DmRoomRow
+                  key={room.id}
+                  room={room}
+                  isActive={params.dmRoomId === room.id}
+                  workspaceId={params.workspaceId}
+                  myUserId={user?.id ?? ''}
+                  isBold={unreadDmRoomIds.has(room.id)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </nav>
       </aside>
 

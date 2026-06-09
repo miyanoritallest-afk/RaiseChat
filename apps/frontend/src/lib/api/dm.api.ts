@@ -25,4 +25,7 @@ export const dmApi = {
 
   updateDmRoom: (dmRoomId: string, name: string) =>
     apiClient.patch<DmRoom>(`/dm-rooms/${dmRoomId}`, { name }),
+
+  reorderDmRooms: (wsId: string, dmRoomIds: string[]) =>
+    apiClient.put<void>(`/workspaces/${wsId}/dm-rooms/reorder`, { dmRoomIds }),
 }

@@ -5,6 +5,7 @@ import { GetDmMessagesDto } from './dto/get-dm-messages.dto'
 import { UpdateDmMessageDto } from './dto/update-dm-message.dto'
 import { UpdateDmRoomDto } from './dto/update-dm-room.dto'
 import { CreateDmMessageDto } from './dto/create-dm-message.dto'
+import { ReorderDmRoomsDto } from './dto/reorder-dm-rooms.dto'
 
 @Injectable()
 export class DmRoomsService {
@@ -12,6 +13,16 @@ export class DmRoomsService {
 
   async getDmRooms(userId: string) {
     return this.dmRoomsRepository.findManyByUserId(userId)
+  }
+
+  async reorderDmRooms(userId: string, dto: ReorderDmRoomsDto) {
+    const rooms = await this.dmRoomsRepository.findManyByUserId(userId)
+    const validIds = new Set(rooms.map((r) => r.id))
+    const invalid = dto.dmRoomIds.find((id) => !validIds.has(id))
+    if (invalid) {
+      throw new HttpException('無効なDMルームIDが含まれています', HttpStatus.BAD_REQUEST)
+    }
+    await this.dmRoomsRepository.reorder(userId, dto.dmRoomIds)
   }
 
   async updateDmRoom(dmRoomId: string, userId: string, dto: UpdateDmRoomDto) {

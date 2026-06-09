@@ -20,4 +20,7 @@ export const channelApi = {
 
   deleteChannel: (wsId: string, channelId: string) =>
     apiClient.delete<void>(`/workspaces/${wsId}/channels/${channelId}`),
+
+  reorderChannels: (wsId: string, channelIds: string[]) =>
+    apiClient.put<void>(`/workspaces/${wsId}/channels/reorder`, { channelIds }),
 }

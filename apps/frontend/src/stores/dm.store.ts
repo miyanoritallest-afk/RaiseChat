@@ -14,6 +14,7 @@ type DmStore = {
   setDmRooms: (rooms: DmRoom[]) => void
   addDmRoom: (room: DmRoom) => void
   updateDmRoom: (room: DmRoom) => void
+  reorderDmRooms: (orderedIds: string[]) => void
   setCurrentRoom: (room: DmRoom | null) => void
   setMessages: (messages: DmMessage[], nextCursor: string | null, hasMore: boolean) => void
   prependMessages: (older: DmMessage[], nextCursor: string | null, hasMore: boolean) => void
@@ -44,6 +45,16 @@ export const useDmStore = create<DmStore>((set) => ({
       dmRooms: state.dmRooms.map((r) => (r.id === room.id ? room : r)),
       currentRoom: state.currentRoom?.id === room.id ? room : state.currentRoom,
     })),
+
+  reorderDmRooms: (orderedIds) =>
+    set((state) => {
+      const map = new Map(state.dmRooms.map((r) => [r.id, r]))
+      const reordered = orderedIds
+        .map((id) => map.get(id))
+        .filter((r): r is DmRoom => r !== undefined)
+      const rest = state.dmRooms.filter((r) => !orderedIds.includes(r.id))
+      return { dmRooms: [...reordered, ...rest] }
+    }),
 
   setCurrentRoom: (room) => set({ currentRoom: room }),
 

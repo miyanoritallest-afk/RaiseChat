@@ -85,11 +85,38 @@ export class DmRoomsRepository {
   }
 
   async findManyByUserId(userId: string) {
-    return this.prisma.dmRoom.findMany({
+    const members = await this.prisma.dmRoomMember.findMany({
+      where: { userId },
+      orderBy: { position: 'asc' },
+      select: { dmRoomId: true },
+    })
+    const orderedIds = members.map((m) => m.dmRoomId)
+
+    const rooms = await this.prisma.dmRoom.findMany({
       where: { members: { some: { userId } } },
-      orderBy: { createdAt: 'desc' },
       select: DM_ROOM_SELECT,
     })
+
+    const orderedSet = new Set(orderedIds)
+    const ordered = orderedIds
+      .map((id) => rooms.find((r) => r.id === id))
+      .filter((r): r is NonNullable<typeof r> => r !== undefined)
+    const rest = rooms
+      .filter((r) => !orderedSet.has(r.id))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return [...ordered, ...rest]
+  }
+
+  async reorder(userId: string, dmRoomIds: string[]) {
+    await this.prisma.$transaction(
+      dmRoomIds.map((dmRoomId, index) =>
+        this.prisma.dmRoomMember.update({
+          where: { dmRoomId_userId: { dmRoomId, userId } },
+          data: { position: index },
+        }),
+      ),
+    )
   }
 
   async findById(dmRoomId: string) {
