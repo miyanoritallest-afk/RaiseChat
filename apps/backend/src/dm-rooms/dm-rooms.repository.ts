@@ -126,6 +126,13 @@ export class DmRoomsRepository {
     })
   }
 
+  async areAllWorkspaceMembers(workspaceId: string, userIds: string[]): Promise<boolean> {
+    const count = await this.prisma.workspaceMember.count({
+      where: { workspaceId, userId: { in: userIds } },
+    })
+    return count === userIds.length
+  }
+
   async isMember(userId: string, dmRoomId: string): Promise<boolean> {
     const member = await this.prisma.dmRoomMember.findUnique({
       where: { dmRoomId_userId: { dmRoomId, userId } },

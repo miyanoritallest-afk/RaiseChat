@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
+import { ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { DmRoomsRepository } from './dm-rooms.repository'
 import { CreateDmRoomDto } from './dto/create-dm-room.dto'
 import { GetDmMessagesDto } from './dto/get-dm-messages.dto'
@@ -41,6 +41,11 @@ export class DmRoomsService {
   }
 
   async createDmRoom(workspaceId: string, myUserId: string, dto: CreateDmRoomDto) {
+    const allValid = await this.dmRoomsRepository.areAllWorkspaceMembers(workspaceId, dto.memberIds)
+    if (!allValid) {
+      throw new ForbiddenException('指定されたメンバーの一部がワークスペースに所属していません')
+    }
+
     const isGroup = dto.memberIds.length > 1
 
     if (isGroup) {
