@@ -129,6 +129,21 @@ export class WorkspacesRepository {
         })
       }
 
+      const joinedUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { displayName: true },
+      })
+
+      if (defaultChannels.length > 0 && joinedUser) {
+        await tx.message.create({
+          data: {
+            channelId: defaultChannels[0].id,
+            userId,
+            content: `${joinedUser.displayName} さんがワークスペースに参加しました！`,
+          },
+        })
+      }
+
       return workspace
     })
   }
