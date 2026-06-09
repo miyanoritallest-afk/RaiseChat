@@ -13,8 +13,10 @@ export type Notification = {
   createdAt: string
   messageId: string | null
   channelId: string | null
+  dmRoomId: string | null
   workspaceId: string | null
   channel: { id: string; name: string } | null
+  dmRoom: { id: string; name: string | null } | null
   workspace: { id: string; name: string } | null
   message: {
     id: string

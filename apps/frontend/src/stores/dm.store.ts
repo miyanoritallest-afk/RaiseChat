@@ -13,6 +13,7 @@ type DmStore = {
 
   setDmRooms: (rooms: DmRoom[]) => void
   addDmRoom: (room: DmRoom) => void
+  updateDmRoom: (room: DmRoom) => void
   setCurrentRoom: (room: DmRoom | null) => void
   setMessages: (messages: DmMessage[], nextCursor: string | null, hasMore: boolean) => void
   prependMessages: (older: DmMessage[], nextCursor: string | null, hasMore: boolean) => void
@@ -36,6 +37,12 @@ export const useDmStore = create<DmStore>((set) => ({
   addDmRoom: (room) =>
     set((state) => ({
       dmRooms: [room, ...state.dmRooms.filter((r) => r.id !== room.id)],
+    })),
+
+  updateDmRoom: (room) =>
+    set((state) => ({
+      dmRooms: state.dmRooms.map((r) => (r.id === room.id ? room : r)),
+      currentRoom: state.currentRoom?.id === room.id ? room : state.currentRoom,
     })),
 
   setCurrentRoom: (room) => set({ currentRoom: room }),

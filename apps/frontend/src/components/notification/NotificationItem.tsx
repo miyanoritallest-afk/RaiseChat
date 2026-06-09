@@ -1,7 +1,9 @@
 'use client'
 
+import { useRouter, useParams } from 'next/navigation'
 import type { Notification } from '@/types/notification'
 import { NOTIFICATION_LABELS } from '@/types/notification'
+import { useNotificationStore } from '@/stores/notification.store'
 
 type Props = {
   notification: Notification
@@ -9,17 +11,36 @@ type Props = {
 }
 
 export function NotificationItem({ notification, onMarkAsRead }: Props) {
+  const router = useRouter()
+  const params = useParams<{ workspaceId?: string }>()
+  const { closeDropdown } = useNotificationStore()
   const label = NOTIFICATION_LABELS[notification.type]
   const preview = notification.message?.content?.slice(0, 60)
+
+  const handleClick = () => {
+    if (!notification.isRead) onMarkAsRead(notification.id)
+
+    const wsId = notification.workspaceId ?? params.workspaceId
+    if (!wsId) {
+      closeDropdown()
+      return
+    }
+
+    if (notification.dmRoomId) {
+      router.push(`/${wsId}/dm/${notification.dmRoomId}`)
+    } else if (notification.channelId) {
+      router.push(`/${wsId}/${notification.channelId}`)
+    }
+
+    closeDropdown()
+  }
 
   return (
     <div
       className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
         !notification.isRead ? 'bg-blue-50' : ''
       }`}
-      onClick={() => {
-        if (!notification.isRead) onMarkAsRead(notification.id)
-      }}
+      onClick={handleClick}
     >
       <div className="flex items-start gap-2">
         {!notification.isRead && (
