@@ -78,7 +78,7 @@ export function WorkspaceList() {
             {workspaces.map((ws) => (
               <Link
                 key={ws.id}
-                href={`/workspaces/${ws.id}`}
+                href={`/${ws.id}`}
                 className="block bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
               >
                 <div className="flex items-center justify-between">
