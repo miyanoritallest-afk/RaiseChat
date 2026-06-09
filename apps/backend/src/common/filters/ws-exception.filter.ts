@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/nestjs'
 import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common'
 import { WsException } from '@nestjs/websockets'
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
@@ -22,9 +23,11 @@ export class WsExceptionFilter implements ExceptionFilter {
         message = '既に同じデータが存在します'
         code = 'CONFLICT'
       } else {
+        captureException(exception)
         this.logger.error(`Prisma WS error ${exception.code}: ${exception.message}`)
       }
     } else if (exception instanceof Error) {
+      captureException(exception)
       this.logger.error(`Unexpected WS error: ${exception.message}`)
     }
 

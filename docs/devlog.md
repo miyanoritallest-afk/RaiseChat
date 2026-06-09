@@ -1417,3 +1417,50 @@ runner:  .next/standalone のみコピー（output: 'standalone' 設定が前提
 **教訓**：「送信者の認可」と「操作対象の所属確認」は別々に実装する必要がある。Guard はリクエスト送信者を守るが、ボディに含まれる任意の ID の検証は Service 層で明示的に行う。
 
 **設計の考え方**：「そのページを開く = そのコンテンツを読んだ」と解釈して既読にするのは Slack と同じ設計。通知はあくまで「未読であることの表示」であり、コンテンツを閲覧した時点で自動消去されるべき。
+
+---
+
+## 2026-06-10 Swagger / Sentry 組み込み（フェーズD前の仕込み）
+
+### 92. Swagger UI（APIドキュメント）の組み込み
+
+**背景**：フェーズD（AWS Terraform本番デプロイ）の直前に、APIドキュメントとエラートラッキングを仕込む方針とした。コードが先に整った状態でインフラを立てることで、デプロイ初日から Swagger UI で動作確認・Sentry でエラーモニタリングができる体制を作る。
+
+**実装内容**：
+- `@nestjs/swagger` + `swagger-ui-express` をバックエンドに追加
+- `GET /api/docs` で Swagger UI を提供（NODE_ENV によるガードなし、常に有効）
+- 全コントローラー 11 ファイルに `@ApiTags` / `@ApiOperation` / `@ApiResponse` / `@ApiBearerAuth` を追加
+- 全 REST DTO 20 ファイルに `@ApiProperty` / `@ApiPropertyOptional` を追加
+- Swagger UI に `persistAuthorization: true` を設定し、JWT トークンがブラウザリロード後も保持される
+
+**設計判断 — Swagger を本番でも公開するか**：Swagger を本番環境で公開することにした。理由は、このアプリはポートフォリオ用途であり、採用担当者や講師が API の仕様を確認できることが価値になるため。セキュリティよりも可視性を優先した。
+
+---
+
+### 93. Sentry エラートラッキングの組み込み
+
+**実装内容**：
+- バックエンド（`@sentry/nestjs`）・フロントエンド（`@sentry/nextjs`）を導入
+- `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` 未設定時は `init()` を呼ばない設計（既存テストへの影響ゼロ）
+- `AllExceptionsFilter`：4xx・Prisma P2002/P2025 は業務エラーとして Sentry に送らず、予期しないエラー（`else` ブロックと Prisma `default` ケース）のみ `captureException` する
+- `WsExceptionFilter`：HTTP フィルターと同様に Prisma 未知エラーと予期しない Error を `captureException` する
+- フロントエンド：`error.tsx` / `global-error.tsx` に `useEffect` 内で `Sentry.captureException` を追加
+- `sentry.client.config.ts`：DSN 未設定時は `replayIntegration()` をロードしない（不要なバンドルを回避）
+
+**Sentry init の配置（バックエンド）**：
+最初のレビューで「`sentryInit()` を `bootstrap()` の外に置くと NestJS の DI コンテキスト外で初期化される」と指摘された。修正で `bootstrap()` の冒頭・`NestFactory.create` より前に移動した。これにより `@sentry/nestjs` のリクエストトレーシングが正しく機能する。
+
+**Edge Runtime 対応（フロントエンド）**：
+最初の実装で `instrumentation.ts` の edge ランタイムブロックが `sentry.server.config` を import しており、Edge Runtime（Node.js API 非対応）では動作しない問題があった。`sentry.edge.config.ts` を別途作成し edge 向けに分離することで修正した。
+
+**コスト**：Sentry は Developer Plan（無料）を使用。月 5,000 エラーまで無料で、個人ポートフォリオには十分。本番稼働後にエラー数が増えた場合のみアップグレードを検討する。
+
+---
+
+### 94. TypeScript `module: nodenext` での named import の必要性
+
+**問題**：`@sentry/nestjs` を `import * as Sentry from '@sentry/nestjs'` でインポートしようとしたところ、TypeScript の `module: nodenext` + strict モードでエラーが発生した。
+
+**原因**：`module: nodenext` では ESM の namespace import（`import * as`）が CJS モジュールに対して厳格に扱われる。`@sentry/nestjs` はデュアルモジュールだが、named export を直接指定しないと型チェックが通らないケースがある。
+
+**対応**：`import { captureException, init as sentryInit } from '@sentry/nestjs'` の named import に統一した。`@sentry/nextjs`（フロントエンド）は Next.js SDK として namespace import が標準的なため `import * as Sentry` のままとした。

@@ -10,6 +10,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger'
 import { memoryStorage } from 'multer'
 import { UploadsService } from './uploads.service'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
@@ -28,6 +37,8 @@ const ALLOWED_MIMES = [
   'video/webm',
 ]
 
+@ApiTags('Uploads')
+@ApiBearerAuth('access-token')
 @Controller('workspaces/:wsId/uploads')
 @UseGuards(JwtAuthGuard, WorkspaceMemberGuard)
 export class UploadsController {
@@ -35,6 +46,17 @@ export class UploadsController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'wsId', description: 'ワークスペースID' })
+  @ApiOperation({ summary: 'ファイルアップロード（画像・動画）' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary', description: '画像・動画ファイル' } },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'アップロード成功・S3キー返却' })
+  @ApiResponse({ status: 400, description: 'ファイル未添付 or 不正な形式' })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
