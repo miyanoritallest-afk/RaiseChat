@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { getDmRoomDisplayName } from '@/types/dm'
 import { CreateDmModal } from '@/components/dm/CreateDmModal'
 import { SearchModal } from '@/components/search/SearchModal'
+import { CreateChannelModal } from '@/components/channel/CreateChannelModal'
 
 export function Sidebar() {
   const params = useParams<{ workspaceId: string; channelId?: string; dmRoomId?: string }>()
@@ -17,6 +18,7 @@ export function Sidebar() {
   const { user } = useAuthStore()
   const [isDmModalOpen, setIsDmModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isChannelModalOpen, setIsChannelModalOpen] = useState(false)
 
   // Cmd+K / Ctrl+K で検索モーダルを開く
   useEffect(() => {
@@ -59,8 +61,15 @@ export function Sidebar() {
         </div>
 
         {/* チャンネルセクション */}
-        <div className="px-4 py-3 border-b border-gray-700">
+        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
           <span className="text-sm font-semibold text-white">チャンネル</span>
+          <button
+            onClick={() => setIsChannelModalOpen(true)}
+            className="text-gray-400 hover:text-white text-lg leading-none"
+            title="チャンネルを追加"
+          >
+            +
+          </button>
         </div>
         <nav className="overflow-y-auto py-2 flex-shrink-0 max-h-64">
           {channels.map((ch) => (
@@ -110,6 +119,12 @@ export function Sidebar() {
       {isDmModalOpen && <CreateDmModal onClose={() => setIsDmModalOpen(false)} />}
       {isSearchOpen && params.workspaceId && (
         <SearchModal wsId={params.workspaceId} onClose={() => setIsSearchOpen(false)} />
+      )}
+      {isChannelModalOpen && params.workspaceId && (
+        <CreateChannelModal
+          wsId={params.workspaceId}
+          onClose={() => setIsChannelModalOpen(false)}
+        />
       )}
     </>
   )

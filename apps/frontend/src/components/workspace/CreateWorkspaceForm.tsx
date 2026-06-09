@@ -35,7 +35,7 @@ export function CreateWorkspaceForm() {
     try {
       const workspace = await workspaceApi.createWorkspace(data)
       addWorkspace(workspace)
-      router.push('/workspaces')
+      router.push(`/${workspace.id}`)
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : 'ワークスペースの作成に失敗しました')
     }

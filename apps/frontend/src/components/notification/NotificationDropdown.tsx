@@ -25,7 +25,7 @@ export function NotificationDropdown() {
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-10 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden"
+      className="fixed top-14 right-4 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999] overflow-hidden"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <span className="text-sm font-semibold text-gray-900">通知</span>
