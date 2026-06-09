@@ -23,6 +23,7 @@ export class WsExceptionFilter implements ExceptionFilter {
         message = '既に同じデータが存在します'
         code = 'CONFLICT'
       } else {
+        captureException(exception)
         this.logger.error(`Prisma WS error ${exception.code}: ${exception.message}`)
       }
     } else if (exception instanceof Error) {

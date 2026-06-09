@@ -7,16 +7,17 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
 
-if (process.env.SENTRY_DSN) {
-  sentryInit({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV ?? 'development',
-    release: process.env.SENTRY_RELEASE,
-    tracesSampleRate: 1.0,
-  })
-}
-
 async function bootstrap() {
+  // Sentry を NestFactory.create より前に初期化してリクエストトレーシングを有効にする
+  if (process.env.SENTRY_DSN) {
+    sentryInit({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV ?? 'development',
+      release: process.env.SENTRY_RELEASE,
+      tracesSampleRate: 1.0,
+    })
+  }
+
   const app = await NestFactory.create(AppModule)
   app.useWebSocketAdapter(new IoAdapter(app))
 
