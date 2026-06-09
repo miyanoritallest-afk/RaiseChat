@@ -16,4 +16,12 @@ export const notificationApi = {
   markAllAsRead(): Promise<void> {
     return apiClient.patch<void>('/notifications/read-all')
   },
+
+  markReadByChannel(channelId: string): Promise<void> {
+    return apiClient.patch<void>(`/notifications/read-by-channel/${channelId}`)
+  },
+
+  markReadByDmRoom(dmRoomId: string): Promise<void> {
+    return apiClient.patch<void>(`/notifications/read-by-dm-room/${dmRoomId}`)
+  },
 }

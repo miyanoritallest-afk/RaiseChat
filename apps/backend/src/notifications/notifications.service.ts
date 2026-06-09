@@ -29,6 +29,14 @@ export class NotificationsService {
     await this.notificationsRepository.markAllAsRead(userId)
   }
 
+  async markReadByChannel(userId: string, channelId: string) {
+    await this.notificationsRepository.markReadByChannel(userId, channelId)
+  }
+
+  async markReadByDmRoom(userId: string, dmRoomId: string) {
+    await this.notificationsRepository.markReadByDmRoom(userId, dmRoomId)
+  }
+
   /**
    * メッセージ内の @username をパースして対象ユーザーに MENTION 通知を生成する。
    * @が含まれない場合は即時スキップしてパフォーマンスを保つ。

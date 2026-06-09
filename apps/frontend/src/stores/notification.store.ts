@@ -31,6 +31,8 @@ type NotificationStore = {
   prependNotification: (notification: Notification) => void
   markAsRead: (notificationId: string) => void
   markAllAsRead: () => void
+  markReadForChannel: (channelId: string) => void
+  markReadForDmRoom: (dmRoomId: string) => void
   setUnreadCount: (count: number) => void
   incrementUnreadCount: () => void
   setIsLoading: (isLoading: boolean) => void
@@ -93,6 +95,40 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       unreadChannelIds: new Set(),
       unreadDmRoomIds: new Set(),
     })),
+
+  markReadForChannel: (channelId) =>
+    set((state) => {
+      const notifications = state.notifications.map((n) =>
+        n.channelId === channelId ? { ...n, isRead: true } : n,
+      )
+      const { channelIds, dmRoomIds } = computeUnreadSets(notifications)
+      const markedCount = state.notifications.filter(
+        (n) => n.channelId === channelId && !n.isRead,
+      ).length
+      return {
+        notifications,
+        unreadCount: Math.max(0, state.unreadCount - markedCount),
+        unreadChannelIds: channelIds,
+        unreadDmRoomIds: dmRoomIds,
+      }
+    }),
+
+  markReadForDmRoom: (dmRoomId) =>
+    set((state) => {
+      const notifications = state.notifications.map((n) =>
+        n.dmRoomId === dmRoomId ? { ...n, isRead: true } : n,
+      )
+      const { channelIds, dmRoomIds } = computeUnreadSets(notifications)
+      const markedCount = state.notifications.filter(
+        (n) => n.dmRoomId === dmRoomId && !n.isRead,
+      ).length
+      return {
+        notifications,
+        unreadCount: Math.max(0, state.unreadCount - markedCount),
+        unreadChannelIds: channelIds,
+        unreadDmRoomIds: dmRoomIds,
+      }
+    }),
 
   setUnreadCount: (unreadCount) => set({ unreadCount }),
   incrementUnreadCount: () => set((state) => ({ unreadCount: state.unreadCount + 1 })),
