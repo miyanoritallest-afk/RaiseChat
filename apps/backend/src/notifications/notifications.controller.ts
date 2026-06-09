@@ -27,4 +27,16 @@ export class NotificationsController {
   markAllAsRead(@Request() req: AuthenticatedRequest) {
     return this.notificationsService.markAllAsRead(req.user.id)
   }
+
+  /** 特定チャンネルの通知を全既読にする */
+  @Patch('read-by-channel/:channelId')
+  markReadByChannel(@Request() req: AuthenticatedRequest, @Param('channelId') channelId: string) {
+    return this.notificationsService.markReadByChannel(req.user.id, channelId)
+  }
+
+  /** 特定DM部屋の通知を全既読にする */
+  @Patch('read-by-dm-room/:dmRoomId')
+  markReadByDmRoom(@Request() req: AuthenticatedRequest, @Param('dmRoomId') dmRoomId: string) {
+    return this.notificationsService.markReadByDmRoom(req.user.id, dmRoomId)
+  }
 }

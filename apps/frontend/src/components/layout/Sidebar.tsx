@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { MoreHorizontal, Pencil, Trash2, Check, X } from 'lucide-react'
@@ -17,6 +18,40 @@ import { CreateDmModal } from '@/components/dm/CreateDmModal'
 import { SearchModal } from '@/components/search/SearchModal'
 import { CreateChannelModal } from '@/components/channel/CreateChannelModal'
 
+// overflow:hidden の親から逃げる fixed ドロップダウンメニュー
+function PortalMenu({
+  top,
+  left,
+  onClose,
+  children,
+}: {
+  top: number
+  left: number
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [onClose])
+
+  return createPortal(
+    <div
+      ref={ref}
+      style={{ top, left }}
+      className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[11rem]"
+    >
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
 // チャンネル行コンポーネント
 function ChannelRow({
   channel,
@@ -31,27 +66,24 @@ function ChannelRow({
 }) {
   const router = useRouter()
   const { updateChannel, removeChannel } = useChannelStore()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(channel.name)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isRenaming) inputRef.current?.focus()
   }, [isRenaming])
 
-  useEffect(() => {
-    if (!menuOpen) return
-    const handle = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
+  const openMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 2, left: rect.left })
     }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [menuOpen])
+  }
 
   const handleRenameSubmit = async () => {
     const trimmed = renameValue.trim()
@@ -74,7 +106,7 @@ function ChannelRow({
   }
 
   const handleDelete = async () => {
-    setMenuOpen(false)
+    setMenuPos(null)
     try {
       await channelApi.deleteChannel(workspaceId, channel.id)
       removeChannel(channel.id)
@@ -132,46 +164,42 @@ function ChannelRow({
           >
             {channel.name}
           </Link>
-          <div className="relative flex-shrink-0" ref={menuRef}>
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                setMenuOpen((v) => !v)
-              }}
-              className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-gray-600 text-gray-400 hover:text-gray-200"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </button>
-            {menuOpen && (
-              <div className="absolute left-0 top-6 z-50 w-40 bg-white rounded-lg shadow-xl border border-gray-200 py-1">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false)
-                    setIsRenaming(true)
-                    setRenameValue(channel.name)
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-gray-400" />
-                  名前を変更
-                </button>
-                <button
-                  onClick={() => void handleDelete()}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  チャンネルを削除
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            ref={btnRef}
+            onClick={openMenu}
+            className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-gray-600 text-gray-400 hover:text-gray-200 flex-shrink-0"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
+          {menuPos && (
+            <PortalMenu top={menuPos.top} left={menuPos.left} onClose={() => setMenuPos(null)}>
+              <button
+                onClick={() => {
+                  setMenuPos(null)
+                  setIsRenaming(true)
+                  setRenameValue(channel.name)
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                名前を変更
+              </button>
+              <button
+                onClick={() => void handleDelete()}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                チャンネルを削除
+              </button>
+            </PortalMenu>
+          )}
         </>
       )}
     </div>
   )
 }
 
-// DMグループ行コンポーネント
+// DM行コンポーネント
 function DmRoomRow({
   room,
   isActive,
@@ -186,11 +214,11 @@ function DmRoomRow({
   isBold: boolean
 }) {
   const { updateDmRoom } = useDmStore()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(room.name ?? '')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const displayName = getDmRoomDisplayName(room, myUserId)
@@ -199,16 +227,13 @@ function DmRoomRow({
     if (isRenaming) inputRef.current?.focus()
   }, [isRenaming])
 
-  useEffect(() => {
-    if (!menuOpen) return
-    const handle = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
+  const openMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 2, left: rect.left })
     }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [menuOpen])
+  }
 
   const handleRenameSubmit = async () => {
     const trimmed = renameValue.trim()
@@ -279,21 +304,19 @@ function DmRoomRow({
             {displayName}
           </Link>
           {room.isGroup && (
-            <div className="relative flex-shrink-0" ref={menuRef}>
+            <>
               <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  setMenuOpen((v) => !v)
-                }}
-                className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-gray-600 text-gray-400 hover:text-gray-200"
+                ref={btnRef}
+                onClick={openMenu}
+                className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-gray-600 text-gray-400 hover:text-gray-200 flex-shrink-0"
               >
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </button>
-              {menuOpen && (
-                <div className="absolute left-0 top-6 z-50 w-44 bg-white rounded-lg shadow-xl border border-gray-200 py-1">
+              {menuPos && (
+                <PortalMenu top={menuPos.top} left={menuPos.left} onClose={() => setMenuPos(null)}>
                   <button
                     onClick={() => {
-                      setMenuOpen(false)
+                      setMenuPos(null)
                       setIsRenaming(true)
                       setRenameValue(room.name ?? displayName)
                     }}
@@ -302,9 +325,9 @@ function DmRoomRow({
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
                     グループ名を変更
                   </button>
-                </div>
+                </PortalMenu>
               )}
-            </div>
+            </>
           )}
         </>
       )}

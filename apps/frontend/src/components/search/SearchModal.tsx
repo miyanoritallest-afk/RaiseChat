@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useSearch } from '@/hooks/useSearch'
 import type { SearchResultMessage } from '@/types/search'
@@ -73,8 +74,8 @@ export function SearchModal({ wsId, onClose }: Props) {
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center px-4">
       {/* オーバーレイ */}
       <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
 
@@ -176,6 +177,7 @@ export function SearchModal({ wsId, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

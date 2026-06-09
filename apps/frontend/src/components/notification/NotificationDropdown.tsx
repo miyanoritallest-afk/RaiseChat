@@ -5,13 +5,17 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { useNotificationStore } from '@/stores/notification.store'
 import { NotificationItem } from './NotificationItem'
 
-export function NotificationDropdown() {
+type Props = {
+  top: number
+  right: number
+}
+
+export function NotificationDropdown({ top, right }: Props) {
   const { notifications, hasMore, isLoading, loadMore, markAsRead, markAllAsRead } =
     useNotifications()
   const { closeDropdown } = useNotificationStore()
   const ref = useRef<HTMLDivElement>(null)
 
-  // ドロップダウン外クリックで閉じる
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -25,7 +29,8 @@ export function NotificationDropdown() {
   return (
     <div
       ref={ref}
-      className="fixed top-14 right-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]"
+      style={{ top, right }}
+      className="fixed w-80 max-w-[calc(100vw-1rem)] bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <span className="text-sm font-semibold text-gray-900">通知</span>
@@ -37,7 +42,7 @@ export function NotificationDropdown() {
         </button>
       </div>
 
-      <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+      <div className="max-h-[calc(100vh-8rem)] overflow-y-auto divide-y divide-gray-100">
         {isLoading && notifications.length === 0 ? (
           <div className="px-4 py-6 text-center text-sm text-gray-400">読み込み中...</div>
         ) : notifications.length === 0 ? (

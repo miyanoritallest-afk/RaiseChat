@@ -55,6 +55,20 @@ export class NotificationsRepository {
     })
   }
 
+  async markReadByChannel(userId: string, channelId: string) {
+    return this.prisma.notification.updateMany({
+      where: { userId, channelId, isRead: false },
+      data: { isRead: true },
+    })
+  }
+
+  async markReadByDmRoom(userId: string, dmRoomId: string) {
+    return this.prisma.notification.updateMany({
+      where: { userId, dmRoomId, isRead: false },
+      data: { isRead: true },
+    })
+  }
+
   /**
    * 重複通知を防ぐため既存レコードがあれば作成しない。
    * - messageId あり: (type, userId, messageId) で重複チェック

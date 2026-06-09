@@ -12,6 +12,8 @@ import { useMessageStore } from '@/stores/message.store'
 import { useThreadStore } from '@/stores/thread.store'
 import { usePinStore } from '@/stores/pin.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { useNotificationStore } from '@/stores/notification.store'
+import { notificationApi } from '@/lib/api/notification.api'
 import { useSocket } from '@/hooks/useSocket'
 import { PinToggleButton, PinnedMessagesPanel } from '@/components/channel/PinnedMessagesPanel'
 
@@ -22,6 +24,7 @@ export default function ChannelPage() {
   const { isOpen: isThreadOpen, reset: resetThread } = useThreadStore()
   const { reset: resetPins } = usePinStore()
   const { user } = useAuthStore()
+  const { markReadForChannel } = useNotificationStore()
   const channel = channels.find((ch) => ch.id === params.channelId)
   const socket = useSocket(params.channelId, params.workspaceId)
 
@@ -31,6 +34,12 @@ export default function ChannelPage() {
     resetThread()
     resetPins()
   }, [params.channelId, resetMessages, resetThread, resetPins])
+
+  // チャンネルを開いたら関連通知を既読にして太字を解除
+  useEffect(() => {
+    markReadForChannel(params.channelId)
+    void notificationApi.markReadByChannel(params.channelId).catch(() => {})
+  }, [params.channelId, markReadForChannel])
 
   return (
     <AppLayout workspaceId={params.workspaceId}>

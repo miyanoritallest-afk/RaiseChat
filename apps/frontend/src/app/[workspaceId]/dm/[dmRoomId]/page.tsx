@@ -11,10 +11,13 @@ import { useDmSocket } from '@/hooks/useDmSocket'
 import { dmApi } from '@/lib/api/dm.api'
 import { getDmRoomDisplayName } from '@/types/dm'
 import { useAuthStore } from '@/stores/auth.store'
+import { useNotificationStore } from '@/stores/notification.store'
+import { notificationApi } from '@/lib/api/notification.api'
 
 export default function DmPage() {
   const params = useParams<{ workspaceId: string; dmRoomId: string }>()
   const { user } = useAuthStore()
+  const { markReadForDmRoom } = useNotificationStore()
   const { currentRoom, setCurrentRoom, reset } = useDmStore()
   const { isLoading, hasMore, loadMore } = useDm(params.dmRoomId)
   const socket = useDmSocket(params.dmRoomId)
@@ -29,6 +32,12 @@ export default function DmPage() {
       })
       .catch(() => {})
   }, [params.workspaceId, params.dmRoomId, setCurrentRoom])
+
+  // DM部屋を開いたら関連通知を既読にして太字を解除
+  useEffect(() => {
+    markReadForDmRoom(params.dmRoomId)
+    void notificationApi.markReadByDmRoom(params.dmRoomId).catch(() => {})
+  }, [params.dmRoomId, markReadForDmRoom])
 
   // ページ離脱時にリセット
   useEffect(() => {
