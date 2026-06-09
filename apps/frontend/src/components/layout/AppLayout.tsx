@@ -40,8 +40,8 @@ export function AppLayout({ workspaceId, children }: Props) {
     router.push('/login')
   }
   const { workspaces, currentWorkspace, setWorkspaces, setCurrentWorkspace } = useWorkspaceStore()
-  const { setChannels } = useChannelStore()
-  const { setDmRooms } = useDmStore()
+  const { setChannels, reset: resetChannels } = useChannelStore()
+  const { setDmRooms, reset: resetDmRooms } = useDmStore()
 
   // アプリ全体で1回だけ通知 Socket を購読する
   useNotificationSocket()
@@ -64,6 +64,11 @@ export function AppLayout({ workspaceId, children }: Props) {
 
   useEffect(() => {
     if (!user) return
+
+    // ワークスペース切り替え時に前のワークスペースのデータを即座にクリア
+    resetChannels()
+    resetDmRooms()
+
     workspaceApi
       .getWorkspace(workspaceId)
       .then(setCurrentWorkspace)
@@ -78,7 +83,16 @@ export function AppLayout({ workspaceId, children }: Props) {
       .getDmRooms(workspaceId)
       .then(setDmRooms)
       .catch(() => {})
-  }, [user, workspaceId, setCurrentWorkspace, setChannels, setDmRooms, router])
+  }, [
+    user,
+    workspaceId,
+    setCurrentWorkspace,
+    setChannels,
+    setDmRooms,
+    resetChannels,
+    resetDmRooms,
+    router,
+  ])
 
   if (authLoading) {
     return (

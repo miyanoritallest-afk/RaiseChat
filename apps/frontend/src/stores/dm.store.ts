@@ -80,5 +80,12 @@ export const useDmStore = create<DmStore>((set) => ({
   setLoading: (loading) => set({ isLoading: loading }),
 
   reset: () =>
-    set({ currentRoom: null, messages: [], nextCursor: null, hasMore: false, isLoading: false }),
+    set({
+      dmRooms: [],
+      currentRoom: null,
+      messages: [],
+      nextCursor: null,
+      hasMore: false,
+      isLoading: false,
+    }),
 }))
