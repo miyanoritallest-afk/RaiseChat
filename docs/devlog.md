@@ -1283,3 +1283,74 @@ runner:  .next/standalone のみコピー（output: 'standalone' 設定が前提
 - サイドバーやフォームはアニメーションがなくても操作上の問題がなく、過剰になる
 
 **補足**：`AnimatePresence` の `mode="wait"` を使うことで、古いチャンネルのフェードアウトが完了してから新しいチャンネルがフェードインする。チャンネル切り替えのタイミングがユーザーに明確に伝わる。
+
+---
+
+## 2026-06-09 フェーズC：UX 不具合修正（PR #34・#35）
+
+### 84. チャンネル/DM の「…」メニューを createPortal + fixed 配置にした理由
+
+**判断**：`ChannelRow` / `DmRoomRow` のポップアップメニューを `absolute` 配置から `createPortal(document.body)` + `fixed` 座標に切り替えた。
+
+**問題の詳細**：
+- サイドバーのチャンネル一覧は `max-h-64 overflow-y-auto` で囲まれている
+- `absolute` 配置の子要素は `overflow` を設定した祖先でクリッピングされる CSS の仕様により、チャンネル一覧の下端でメニューがスクロールバーに隠れて表示されなかった
+
+**解決策**：
+- `PortalMenu` コンポーネントを新設し、`createPortal(…, document.body)` で DOM ツリーのルートに描画
+- `getBoundingClientRect()` で「…」ボタンの画面上の座標を取得し、`style={{ top, left }}` で `fixed` 配置
+- `document.addEventListener('mousedown', handleClickOutside)` でメニュー外クリック時に閉じる処理を付与
+
+**同パターンの適用範囲**：`NotificationBell`（通知ドロップダウン）でも同じアプローチを採用済み。overflow コンテナに入れ子になる UI 要素には一貫して portal + fixed を使う方針にした。
+
+---
+
+### 85. SearchModal を createPortal(document.body) に変更した理由
+
+**判断**：`SearchModal` の描画位置を `Sidebar.tsx` の JSX 内から `createPortal(document.body)` に変更した。
+
+**問題の詳細**：
+- 旧実装では `SearchModal` は `<Sidebar>` の子として描画されていた（DOM ツリーが Sidebar の中にある）
+- `SearchModal` のオーバーレイ div に `onClick={handleClose}` を付けていたが、ページの「メインコンテンツエリア」は Sidebar と兄弟関係の別ブランチ
+- React のイベントバブリングは DOM ツリーに沿うため、Sidebar の外（main 要素）のクリックは Sidebar 内の onClick に到達しない
+
+**解決策**：
+- `createPortal(…, document.body)` で `<body>` 直下に描画することでイベントのスコープを DOM ルートに持ち上げた
+- `fixed inset-0` のオーバーレイが画面全体を覆うため、どこをクリックしてもモーダルが閉じるようになった
+
+---
+
+### 86. 通知モーダルをボタン追従表示から画面中央モーダルに変更した理由
+
+**判断**：通知ベルクリック時の表示を「ボタン位置に追従する fixed ドロップダウン」から「画面中央の fixed + オーバーレイモーダル」に変更した（SearchModal・WorkspaceSettingsModal と同じスタイル）。
+
+**問題の詳細**：
+- 当初の実装は `getBoundingClientRect()` でベルボタンの座標を計算し、`style={{ top, right }}` で追従表示する方式だった
+- サイドバーのヘッダー付近（画面上部）にベルがあるため、通知数が多いと下方向にはみ出してコンテンツが切れる問題が残った
+- `max-h-[calc(100vh-8rem)]` で高さを制限してもスクロール領域が画面上部に接近するため UX が悪かった
+
+**変更後**：
+- `fixed inset-0 flex items-center justify-center` で画面中央に配置
+- `createPortal(document.body)` で Sidebar の DOM ツリーから独立
+- オーバーレイ（`bg-black/40`）クリックで閉じる
+- ボタン座標計算・リサイズ時の再計算ロジックが不要になりコードもシンプルになった
+
+**トレードオフ**：ドロップダウン風のボタン追従 UI は「ベルの近くに出る」という空間的関係が自然だが、モーダル方式は画面サイズによらず安定して全コンテンツが見える。通知リストの量が不定でコンテンツ量が多い UI にはモーダル方式の方が適している。
+
+---
+
+### 87. チャンネル/DM 訪問時に関連通知を自動既読化した理由
+
+**判断**：`ChannelPage` / `DmPage` のマウント時に、そのチャンネル/DM 宛ての未読通知を自動で既読にするよう変更した。
+
+**問題の詳細**：
+- 通知ベルから該当のチャンネル/DM にジャンプした場合はその通知 1 件が既読になっていた
+- チャンネル/DM をサイドバーから直接クリックした場合は `markAsRead` が呼ばれないため、未読太字が残り続けていた
+- 「通知を経由しないとサイドバーの太字が消えない」という不自然な UX
+
+**実装**：
+- バックエンドに `PATCH /notifications/read-by-channel/:channelId` と `PATCH /notifications/read-by-dm-room/:dmRoomId` を追加
+- フロントエンドの `notification.store.ts` に `markReadForChannel(channelId)` / `markReadForDmRoom(dmRoomId)` を追加（ストア内の対象通知を一括既読化）
+- `ChannelPage` / `DmPage` の `useEffect` でページマウント時にストア更新（即時 UI 反映）+ API 呼び出し（DB 反映）を両方実行
+
+**設計の考え方**：「そのページを開く = そのコンテンツを読んだ」と解釈して既読にするのは Slack と同じ設計。通知はあくまで「未読であることの表示」であり、コンテンツを閲覧した時点で自動消去されるべき。
