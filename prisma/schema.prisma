@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../apps/backend/node_modules/.prisma/client"
 }
 
 datasource db {
@@ -107,6 +108,7 @@ model ChannelMember {
   id        String   @id @default(cuid())
   userId    String
   channelId String
+  position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -210,6 +212,7 @@ model DmRoomMember {
   id        String   @id @default(cuid())
   dmRoomId  String
   userId    String
+  position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -24,5 +24,8 @@
     "apps/frontend/src/**/*.{ts,tsx}": [
       "npx prettier --write"
     ]
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
   }
 }

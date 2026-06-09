@@ -124,4 +124,50 @@ export class ChannelsRepository {
       where: { userId_channelId: { userId, channelId } },
     })
   }
+
+  async reorder(userId: string, channelIds: string[]) {
+    await this.prisma.$transaction(
+      channelIds.map((channelId, index) =>
+        this.prisma.channelMember.update({
+          where: { userId_channelId: { userId, channelId } },
+          data: { position: index },
+        }),
+      ),
+    )
+  }
+
+  async findAccessibleChannelsOrdered(workspaceId: string, userId: string) {
+    const members = await this.prisma.channelMember.findMany({
+      where: { userId, channel: { workspaceId } },
+      orderBy: { position: 'asc' },
+      select: { channelId: true },
+    })
+    const orderedIds = members.map((m) => m.channelId)
+
+    const channels = await this.prisma.channel.findMany({
+      where: {
+        workspaceId,
+        OR: [{ isPrivate: false }, { members: { some: { userId } } }],
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isPrivate: true,
+        isDefault: true,
+        createdAt: true,
+        _count: { select: { members: true } },
+      },
+    })
+
+    const orderedSet = new Set(orderedIds)
+    const ordered = orderedIds
+      .map((id) => channels.find((c) => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined)
+    const rest = channels
+      .filter((c) => !orderedSet.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    return [...ordered, ...rest]
+  }
 }

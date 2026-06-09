@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common'
@@ -17,6 +18,7 @@ import { GetDmMessagesDto } from './dto/get-dm-messages.dto'
 import { UpdateDmMessageDto } from './dto/update-dm-message.dto'
 import { UpdateDmRoomDto } from './dto/update-dm-room.dto'
 import { CreateDmMessageDto } from './dto/create-dm-message.dto'
+import { ReorderDmRoomsDto } from './dto/reorder-dm-rooms.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard'
 import { DmRoomMemberGuard } from '../common/guards/dm-room-member.guard'
@@ -38,6 +40,12 @@ export class DmRoomsController {
   @Post()
   async createDmRoom(@CurrentUser() user: JwtUser, @Body() dto: CreateDmRoomDto) {
     return this.dmRoomsService.createDmRoom(user.id, dto)
+  }
+
+  @Put('reorder')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async reorderDmRooms(@CurrentUser() user: JwtUser, @Body() dto: ReorderDmRoomsDto) {
+    return this.dmRoomsService.reorderDmRooms(user.id, dto)
   }
 }
 

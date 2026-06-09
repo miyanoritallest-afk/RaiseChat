@@ -11,6 +11,7 @@ type ChannelStore = {
   addChannel: (channel: Channel) => void
   updateChannel: (channel: Channel) => void
   removeChannel: (channelId: string) => void
+  reorderChannels: (orderedIds: string[]) => void
   reset: () => void
 }
 
@@ -31,5 +32,14 @@ export const useChannelStore = create<ChannelStore>((set) => ({
       channels: state.channels.filter((c) => c.id !== channelId),
       currentChannel: state.currentChannel?.id === channelId ? null : state.currentChannel,
     })),
+  reorderChannels: (orderedIds) =>
+    set((state) => {
+      const map = new Map(state.channels.map((c) => [c.id, c]))
+      const reordered = orderedIds
+        .map((id) => map.get(id))
+        .filter((c): c is Channel => c !== undefined)
+      const rest = state.channels.filter((c) => !orderedIds.includes(c.id))
+      return { channels: [...reordered, ...rest] }
+    }),
   reset: () => set({ channels: [], currentChannel: null }),
 }))

@@ -2,13 +2,27 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { ChannelsRepository } from './channels.repository'
 import { CreateChannelDto } from './dto/create-channel.dto'
 import { UpdateChannelDto } from './dto/update-channel.dto'
+import { ReorderChannelsDto } from './dto/reorder-channels.dto'
 
 @Injectable()
 export class ChannelsService {
   constructor(private readonly channelsRepository: ChannelsRepository) {}
 
   async getChannels(workspaceId: string, userId: string) {
-    return this.channelsRepository.findAccessibleChannels(workspaceId, userId)
+    return this.channelsRepository.findAccessibleChannelsOrdered(workspaceId, userId)
+  }
+
+  async reorderChannels(workspaceId: string, userId: string, dto: ReorderChannelsDto) {
+    const channels = await this.channelsRepository.findAccessibleChannelsOrdered(
+      workspaceId,
+      userId,
+    )
+    const validIds = new Set(channels.map((c) => c.id))
+    const invalid = dto.channelIds.find((id) => !validIds.has(id))
+    if (invalid) {
+      throw new HttpException('無効なチャンネルIDが含まれています', HttpStatus.BAD_REQUEST)
+    }
+    await this.channelsRepository.reorder(userId, dto.channelIds)
   }
 
   async getChannel(channelId: string, workspaceId: string) {

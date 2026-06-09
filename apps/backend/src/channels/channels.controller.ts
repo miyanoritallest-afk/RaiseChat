@@ -8,11 +8,13 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common'
 import { ChannelsService } from './channels.service'
 import { CreateChannelDto } from './dto/create-channel.dto'
 import { UpdateChannelDto } from './dto/update-channel.dto'
+import { ReorderChannelsDto } from './dto/reorder-channels.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard'
 import { WorkspaceOwnerGuard } from '../common/guards/workspace-owner.guard'
@@ -29,6 +31,16 @@ export class ChannelsController {
   @Get()
   async getChannels(@Param('wsId') wsId: string, @CurrentUser() user: JwtUser) {
     return this.channelsService.getChannels(wsId, user.id)
+  }
+
+  @Put('reorder')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async reorderChannels(
+    @Param('wsId') wsId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ReorderChannelsDto,
+  ) {
+    return this.channelsService.reorderChannels(wsId, user.id, dto)
   }
 
   @Post()

@@ -86,7 +86,7 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "moduleNameMapper": {
-      "^\\.prisma/client$": "<rootDir>/../../../node_modules/.prisma/client/index.js"
+      "^\\.prisma/client$": "<rootDir>/../node_modules/.prisma/client/index.js"
     },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
