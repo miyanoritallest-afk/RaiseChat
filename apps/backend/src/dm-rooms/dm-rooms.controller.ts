@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { DmRoomsService } from './dm-rooms.service'
 import { CreateDmRoomDto } from './dto/create-dm-room.dto'
 import { GetDmMessagesDto } from './dto/get-dm-messages.dto'
@@ -27,17 +28,25 @@ import { CurrentUser } from '../common/decorators/current-user.decorator'
 type JwtUser = { id: string; username: string }
 
 // ワークスペースコンテキストでのDM部屋管理（作成・一覧）
+@ApiTags('DM-Rooms')
+@ApiBearerAuth('access-token')
 @Controller('workspaces/:wsId/dm-rooms')
 @UseGuards(JwtAuthGuard, WorkspaceMemberGuard)
 export class DmRoomsController {
   constructor(private readonly dmRoomsService: DmRoomsService) {}
 
   @Get()
+  @ApiParam({ name: 'wsId', description: 'ワークスペースID' })
+  @ApiOperation({ summary: 'DM部屋一覧' })
+  @ApiResponse({ status: 200 })
   async getDmRooms(@Param('wsId') wsId: string, @CurrentUser() user: JwtUser) {
     return this.dmRoomsService.getDmRooms(user.id, wsId)
   }
 
   @Post()
+  @ApiParam({ name: 'wsId', description: 'ワークスペースID' })
+  @ApiOperation({ summary: 'DM部屋作成' })
+  @ApiResponse({ status: 201 })
   async createDmRoom(
     @Param('wsId') wsId: string,
     @CurrentUser() user: JwtUser,
@@ -48,6 +57,9 @@ export class DmRoomsController {
 
   @Put('reorder')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'wsId', description: 'ワークスペースID' })
+  @ApiOperation({ summary: 'DM部屋順序変更' })
+  @ApiResponse({ status: 204 })
   async reorderDmRooms(
     @Param('wsId') wsId: string,
     @CurrentUser() user: JwtUser,
@@ -58,12 +70,17 @@ export class DmRoomsController {
 }
 
 // DM部屋単体への操作（DmRoomMemberGuardで認可）
+@ApiTags('DM-Rooms')
+@ApiBearerAuth('access-token')
 @Controller('dm-rooms/:dmRoomId')
 @UseGuards(JwtAuthGuard, DmRoomMemberGuard)
 export class DmRoomController {
   constructor(private readonly dmRoomsService: DmRoomsService) {}
 
   @Patch()
+  @ApiParam({ name: 'dmRoomId', description: 'DM部屋ID' })
+  @ApiOperation({ summary: 'DM部屋名更新' })
+  @ApiResponse({ status: 200 })
   async updateDmRoom(
     @Param('dmRoomId') dmRoomId: string,
     @CurrentUser() user: JwtUser,
@@ -74,17 +91,25 @@ export class DmRoomController {
 }
 
 // DM部屋内のメッセージ操作（DmRoomMemberGuardで認可）
+@ApiTags('DM-Messages')
+@ApiBearerAuth('access-token')
 @Controller('dm-rooms/:dmRoomId/messages')
 @UseGuards(JwtAuthGuard, DmRoomMemberGuard)
 export class DmMessagesController {
   constructor(private readonly dmRoomsService: DmRoomsService) {}
 
   @Get()
+  @ApiParam({ name: 'dmRoomId', description: 'DM部屋ID' })
+  @ApiOperation({ summary: 'DMメッセージ一覧（カーソルページネーション）' })
+  @ApiResponse({ status: 200 })
   async getDmMessages(@Param('dmRoomId') dmRoomId: string, @Query() dto: GetDmMessagesDto) {
     return this.dmRoomsService.getDmMessages(dmRoomId, dto)
   }
 
   @Post()
+  @ApiParam({ name: 'dmRoomId', description: 'DM部屋ID' })
+  @ApiOperation({ summary: 'DMメッセージ送信' })
+  @ApiResponse({ status: 201 })
   async createDmMessage(
     @Param('dmRoomId') dmRoomId: string,
     @CurrentUser() user: JwtUser,
@@ -94,6 +119,10 @@ export class DmMessagesController {
   }
 
   @Patch(':messageId')
+  @ApiParam({ name: 'dmRoomId', description: 'DM部屋ID' })
+  @ApiParam({ name: 'messageId', description: 'メッセージID' })
+  @ApiOperation({ summary: 'DMメッセージ編集' })
+  @ApiResponse({ status: 200 })
   async updateDmMessage(
     @Param('dmRoomId') dmRoomId: string,
     @Param('messageId') messageId: string,
@@ -105,6 +134,10 @@ export class DmMessagesController {
 
   @Delete(':messageId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'dmRoomId', description: 'DM部屋ID' })
+  @ApiParam({ name: 'messageId', description: 'メッセージID' })
+  @ApiOperation({ summary: 'DMメッセージ削除' })
+  @ApiResponse({ status: 204 })
   async deleteDmMessage(
     @Param('dmRoomId') dmRoomId: string,
     @Param('messageId') messageId: string,

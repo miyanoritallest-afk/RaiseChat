@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
   IsBoolean,
   IsNotEmpty,
@@ -9,6 +10,10 @@ import {
 } from 'class-validator'
 
 export class CreateChannelDto {
+  @ApiProperty({
+    example: 'general',
+    description: 'チャンネル名（英小文字・数字・ハイフン・アンダースコア、1〜50文字）',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(1)
@@ -18,10 +23,15 @@ export class CreateChannelDto {
   })
   name!: string
 
+  @ApiPropertyOptional({ example: false, description: 'プライベートチャンネルフラグ' })
   @IsBoolean()
   @IsOptional()
   isPrivate?: boolean
 
+  @ApiPropertyOptional({
+    example: '全体連絡用チャンネル',
+    description: 'チャンネル説明（最大200文字）',
+  })
   @IsString()
   @IsOptional()
   @MaxLength(200)

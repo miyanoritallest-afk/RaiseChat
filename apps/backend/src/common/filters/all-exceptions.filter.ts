@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/nestjs'
 import {
   ArgumentsHost,
   Catch,
@@ -36,9 +37,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message = '対象のデータが見つかりません'
           break
         default:
+          captureException(exception)
           this.logger.error(`Prisma error ${exception.code}: ${exception.message}`)
       }
     } else {
+      captureException(exception)
       this.logger.error('Unexpected error:', exception)
     }
 
