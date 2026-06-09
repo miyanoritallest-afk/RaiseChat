@@ -159,9 +159,9 @@ export function MessageItem({ message, wsId, channelId }: Props) {
             className="mt-1.5 flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
           >
             <div className="flex -space-x-1">
-              {message.replies.slice(0, 3).map((r) => (
+              {message.replies.slice(0, 3).map((r, i) => (
                 <div
-                  key={r.user.id}
+                  key={`${r.user.id}-${i}`}
                   className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs border border-white"
                   title={r.user.displayName}
                 >

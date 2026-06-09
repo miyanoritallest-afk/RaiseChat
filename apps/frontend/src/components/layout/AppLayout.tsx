@@ -27,6 +27,7 @@ export function AppLayout({ workspaceId, children }: Props) {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const { user, isLoading: authLoading, clearAuth } = useAuthStore()
 
   const handleLogout = async () => {
@@ -113,7 +114,7 @@ export function AppLayout({ workspaceId, children }: Props) {
           +
         </Link>
         <button
-          onClick={() => void handleLogout()}
+          onClick={() => setLogoutConfirmOpen(true)}
           title="ログアウト"
           className="w-10 h-10 rounded-xl hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-400 transition-colors"
         >
@@ -182,6 +183,40 @@ export function AppLayout({ workspaceId, children }: Props) {
           workspace={currentWorkspace}
           onClose={() => setSettingsOpen(false)}
         />
+      )}
+
+      {logoutConfirmOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setLogoutConfirmOpen(false)}
+          />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <LogOut className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">ログアウト</h3>
+                <p className="text-sm text-gray-500">本当にログアウトしますか？</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setLogoutConfirmOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => void handleLogout()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                ログアウト
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

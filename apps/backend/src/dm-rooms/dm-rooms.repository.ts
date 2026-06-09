@@ -193,6 +193,14 @@ export class DmRoomsRepository {
     return this.resolveAttachmentUrls(row)
   }
 
+  async updateDmRoom(dmRoomId: string, name: string) {
+    return this.prisma.dmRoom.update({
+      where: { id: dmRoomId },
+      data: { name },
+      select: DM_ROOM_SELECT,
+    })
+  }
+
   async softDeleteMessage(messageId: string) {
     return this.prisma.dmMessage.update({
       where: { id: messageId },

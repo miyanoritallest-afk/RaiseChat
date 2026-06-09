@@ -15,6 +15,7 @@ import { DmRoomsService } from './dm-rooms.service'
 import { CreateDmRoomDto } from './dto/create-dm-room.dto'
 import { GetDmMessagesDto } from './dto/get-dm-messages.dto'
 import { UpdateDmMessageDto } from './dto/update-dm-message.dto'
+import { UpdateDmRoomDto } from './dto/update-dm-room.dto'
 import { CreateDmMessageDto } from './dto/create-dm-message.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard'
@@ -37,6 +38,22 @@ export class DmRoomsController {
   @Post()
   async createDmRoom(@CurrentUser() user: JwtUser, @Body() dto: CreateDmRoomDto) {
     return this.dmRoomsService.createDmRoom(user.id, dto)
+  }
+}
+
+// DM部屋単体への操作（DmRoomMemberGuardで認可）
+@Controller('dm-rooms/:dmRoomId')
+@UseGuards(JwtAuthGuard, DmRoomMemberGuard)
+export class DmRoomController {
+  constructor(private readonly dmRoomsService: DmRoomsService) {}
+
+  @Patch()
+  async updateDmRoom(
+    @Param('dmRoomId') dmRoomId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() dto: UpdateDmRoomDto,
+  ) {
+    return this.dmRoomsService.updateDmRoom(dmRoomId, user.id, dto)
   }
 }
 

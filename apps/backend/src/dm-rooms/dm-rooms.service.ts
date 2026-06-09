@@ -3,6 +3,7 @@ import { DmRoomsRepository } from './dm-rooms.repository'
 import { CreateDmRoomDto } from './dto/create-dm-room.dto'
 import { GetDmMessagesDto } from './dto/get-dm-messages.dto'
 import { UpdateDmMessageDto } from './dto/update-dm-message.dto'
+import { UpdateDmRoomDto } from './dto/update-dm-room.dto'
 import { CreateDmMessageDto } from './dto/create-dm-message.dto'
 
 @Injectable()
@@ -11,6 +12,21 @@ export class DmRoomsService {
 
   async getDmRooms(userId: string) {
     return this.dmRoomsRepository.findManyByUserId(userId)
+  }
+
+  async updateDmRoom(dmRoomId: string, userId: string, dto: UpdateDmRoomDto) {
+    const room = await this.dmRoomsRepository.findById(dmRoomId)
+    if (!room) {
+      throw new HttpException('DM部屋が見つかりません', HttpStatus.NOT_FOUND)
+    }
+    if (!room.isGroup) {
+      throw new HttpException('1対1DMの名前は変更できません', HttpStatus.BAD_REQUEST)
+    }
+    const isMember = room.members.some((m) => m.userId === userId)
+    if (!isMember) {
+      throw new HttpException('このDM部屋のメンバーではありません', HttpStatus.FORBIDDEN)
+    }
+    return this.dmRoomsRepository.updateDmRoom(dmRoomId, dto.name)
   }
 
   async createDmRoom(myUserId: string, dto: CreateDmRoomDto) {

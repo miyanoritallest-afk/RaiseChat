@@ -22,4 +22,7 @@ export const dmApi = {
 
   deleteDmMessage: (dmRoomId: string, messageId: string) =>
     apiClient.delete<void>(`/dm-rooms/${dmRoomId}/messages/${messageId}`),
+
+  updateDmRoom: (dmRoomId: string, name: string) =>
+    apiClient.patch<DmRoom>(`/dm-rooms/${dmRoomId}`, { name }),
 }

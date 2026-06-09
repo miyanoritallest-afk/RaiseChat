@@ -14,4 +14,10 @@ export const channelApi = {
 
   joinChannel: (wsId: string, channelId: string) =>
     apiClient.post<void>(`/workspaces/${wsId}/channels/${channelId}/join`),
+
+  updateChannel: (wsId: string, channelId: string, data: { name: string }) =>
+    apiClient.patch<Channel>(`/workspaces/${wsId}/channels/${channelId}`, data),
+
+  deleteChannel: (wsId: string, channelId: string) =>
+    apiClient.delete<void>(`/workspaces/${wsId}/channels/${channelId}`),
 }
