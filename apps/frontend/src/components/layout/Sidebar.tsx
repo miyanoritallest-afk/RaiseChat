@@ -422,7 +422,7 @@ export function Sidebar() {
 
     const oldIndex = channels.findIndex((c) => c.id === active.id)
     const newIndex = channels.findIndex((c) => c.id === over.id)
-    const newOrder = arrayMove(channels, oldIndex, newIndex)
+    const newOrder: Channel[] = arrayMove(channels, oldIndex, newIndex)
     const newIds = newOrder.map((c) => c.id)
 
     // オプティミスティック更新
@@ -438,7 +438,7 @@ export function Sidebar() {
 
     const oldIndex = dmRooms.findIndex((r) => r.id === active.id)
     const newIndex = dmRooms.findIndex((r) => r.id === over.id)
-    const newOrder = arrayMove(dmRooms, oldIndex, newIndex)
+    const newOrder: DmRoom[] = arrayMove(dmRooms, oldIndex, newIndex)
     const newIds = newOrder.map((r) => r.id)
 
     // オプティミスティック更新
