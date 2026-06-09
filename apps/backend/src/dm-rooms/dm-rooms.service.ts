@@ -11,12 +11,12 @@ import { ReorderDmRoomsDto } from './dto/reorder-dm-rooms.dto'
 export class DmRoomsService {
   constructor(private readonly dmRoomsRepository: DmRoomsRepository) {}
 
-  async getDmRooms(userId: string) {
-    return this.dmRoomsRepository.findManyByUserId(userId)
+  async getDmRooms(userId: string, workspaceId: string) {
+    return this.dmRoomsRepository.findManyByUserId(userId, workspaceId)
   }
 
-  async reorderDmRooms(userId: string, dto: ReorderDmRoomsDto) {
-    const rooms = await this.dmRoomsRepository.findManyByUserId(userId)
+  async reorderDmRooms(userId: string, workspaceId: string, dto: ReorderDmRoomsDto) {
+    const rooms = await this.dmRoomsRepository.findManyByUserId(userId, workspaceId)
     const validIds = new Set(rooms.map((r) => r.id))
     const invalid = dto.dmRoomIds.find((id) => !validIds.has(id))
     if (invalid) {
@@ -40,15 +40,15 @@ export class DmRoomsService {
     return this.dmRoomsRepository.updateDmRoom(dmRoomId, dto.name)
   }
 
-  async createDmRoom(myUserId: string, dto: CreateDmRoomDto) {
+  async createDmRoom(workspaceId: string, myUserId: string, dto: CreateDmRoomDto) {
     const isGroup = dto.memberIds.length > 1
 
     if (isGroup) {
-      return this.dmRoomsRepository.createGroupRoom(myUserId, dto.memberIds, dto.name)
+      return this.dmRoomsRepository.createGroupRoom(workspaceId, myUserId, dto.memberIds, dto.name)
     }
 
-    // 1対1DMは既存部屋を使い回す（重複防止）
-    return this.dmRoomsRepository.findOrCreateDirectRoom(myUserId, dto.memberIds[0])
+    // 1対1DMは同一ワークスペース内の既存部屋を使い回す（重複防止）
+    return this.dmRoomsRepository.findOrCreateDirectRoom(workspaceId, myUserId, dto.memberIds[0])
   }
 
   async getDmMessages(dmRoomId: string, dto: GetDmMessagesDto) {

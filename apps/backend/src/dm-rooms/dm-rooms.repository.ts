@@ -84,16 +84,16 @@ export class DmRoomsRepository {
     return { ...message, attachments: resolved }
   }
 
-  async findManyByUserId(userId: string) {
+  async findManyByUserId(userId: string, workspaceId: string) {
     const members = await this.prisma.dmRoomMember.findMany({
-      where: { userId },
+      where: { userId, dmRoom: { workspaceId } },
       orderBy: { position: 'asc' },
       select: { dmRoomId: true },
     })
     const orderedIds = members.map((m) => m.dmRoomId)
 
     const rooms = await this.prisma.dmRoom.findMany({
-      where: { members: { some: { userId } } },
+      where: { workspaceId, members: { some: { userId } } },
       select: DM_ROOM_SELECT,
     })
 
@@ -134,20 +134,18 @@ export class DmRoomsRepository {
     return !!member
   }
 
-  // 1対1DMの場合は既存部屋を返し、なければ新規作成する（重複防止）
-  async findOrCreateDirectRoom(myUserId: string, otherUserId: string) {
+  // 1対1DMの場合は同一ワークスペース内の既存部屋を返し、なければ新規作成する（重複防止）
+  async findOrCreateDirectRoom(workspaceId: string, myUserId: string, otherUserId: string) {
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 2人のみのisGroup=false部屋を探す
-      // select: DM_ROOM_SELECT を使い新規作成パスと返却形を統一する（members[].user が常に存在する）
       const candidates = await tx.dmRoom.findMany({
         where: {
+          workspaceId,
           isGroup: false,
           members: { some: { userId: myUserId } },
         },
         select: DM_ROOM_SELECT,
       })
 
-      // JS側でotherUserIdを含む2人部屋を特定（PrismaのexactlyN件条件を補う）
       type Candidate = (typeof candidates)[number]
       type Member = Candidate['members'][number]
       const existing = candidates.find(
@@ -158,6 +156,7 @@ export class DmRoomsRepository {
 
       return tx.dmRoom.create({
         data: {
+          workspaceId,
           isGroup: false,
           members: {
             create: [{ userId: myUserId }, { userId: otherUserId }],
@@ -168,10 +167,11 @@ export class DmRoomsRepository {
     })
   }
 
-  async createGroupRoom(myUserId: string, memberIds: string[], name?: string) {
+  async createGroupRoom(workspaceId: string, myUserId: string, memberIds: string[], name?: string) {
     const allMemberIds = Array.from(new Set([myUserId, ...memberIds]))
     return this.prisma.dmRoom.create({
       data: {
+        workspaceId,
         isGroup: true,
         name: name ?? null,
         members: {
