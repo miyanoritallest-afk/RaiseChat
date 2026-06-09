@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, LogOut, Settings } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
+import { authApi } from '@/lib/api/auth.api'
+import { WorkspaceSettingsModal } from '@/components/workspace/WorkspaceSettingsModal'
 import { useWorkspaceStore } from '@/stores/workspace.store'
 import { useChannelStore } from '@/stores/channel.store'
 import { useDmStore } from '@/stores/dm.store'
@@ -24,7 +26,18 @@ type Props = {
 export function AppLayout({ workspaceId, children }: Props) {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, isLoading: authLoading } = useAuthStore()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { user, isLoading: authLoading, clearAuth } = useAuthStore()
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch {
+      // ignore
+    }
+    clearAuth()
+    router.push('/login')
+  }
   const { workspaces, currentWorkspace, setWorkspaces, setCurrentWorkspace } = useWorkspaceStore()
   const { setChannels } = useChannelStore()
   const { setDmRooms } = useDmStore()
@@ -99,6 +112,13 @@ export function AppLayout({ workspaceId, children }: Props) {
         >
           +
         </Link>
+        <button
+          onClick={() => void handleLogout()}
+          title="ログアウト"
+          className="w-10 h-10 rounded-xl hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-400 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
 
       {/* モバイル: サイドバーオーバーレイ背景 */}
@@ -120,6 +140,13 @@ export function AppLayout({ workspaceId, children }: Props) {
           <span className="text-white font-semibold truncate">{currentWorkspace?.name}</span>
           <div className="flex items-center gap-2">
             <NotificationBell />
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title="ワークスペース設定"
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
             <button
               className="md:hidden text-gray-400 hover:text-white"
               onClick={() => setSidebarOpen(false)}
@@ -149,6 +176,13 @@ export function AppLayout({ workspaceId, children }: Props) {
         </div>
         {children}
       </main>
+
+      {settingsOpen && currentWorkspace && (
+        <WorkspaceSettingsModal
+          workspace={currentWorkspace}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   )
 }

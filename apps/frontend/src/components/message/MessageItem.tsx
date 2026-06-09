@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef as useEditRef } from 'react'
 import { motion } from 'framer-motion'
 import type { Message } from '@/types/message'
 import { useAuthStore } from '@/stores/auth.store'
@@ -37,6 +37,14 @@ export function MessageItem({ message, wsId, channelId }: Props) {
 
   const isAuthor = user?.id === message.user.id
   const hasReplies = message._count.replies > 0
+  const editTextareaRef = useEditRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const el = editTextareaRef.current
+    if (!el || !isEditing) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [editContent, isEditing])
 
   const handleEdit = async () => {
     if (!editContent.trim() || editContent === message.content) {
@@ -76,7 +84,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
-      className="group flex gap-3 px-4 py-1 hover:bg-gray-50"
+      className="group flex gap-3 px-4 py-2 hover:bg-gray-50"
     >
       <div className="w-9 h-9 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center text-sm font-medium text-gray-600 mt-0.5">
         {message.user.displayName.charAt(0).toUpperCase()}
@@ -91,6 +99,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
         {isEditing ? (
           <div className="mt-1">
             <textarea
+              ref={editTextareaRef}
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               onKeyDown={(e) => {
@@ -104,7 +113,7 @@ export function MessageItem({ message, wsId, channelId }: Props) {
                 }
               }}
               className="w-full px-3 py-2 border border-blue-400 rounded text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-              rows={2}
+              style={{ minHeight: '40px', height: '40px' }}
               autoFocus
             />
             <div className="flex gap-2 mt-1 text-xs">

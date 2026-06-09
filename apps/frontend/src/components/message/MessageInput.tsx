@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type { Socket } from 'socket.io-client'
 import { useTyping } from '@/hooks/useTyping'
 import { useFileUpload } from '@/hooks/useFileUpload'
@@ -30,6 +30,13 @@ export function MessageInput({ wsId, channelId, channelName, socket }: Props) {
   } = useFileUpload(wsId)
 
   const isUploading = attachments.some((a) => a.isUploading)
+
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [content])
 
   const handleSubmit = async () => {
     const trimmed = content.trim()
@@ -114,7 +121,7 @@ export function MessageInput({ wsId, channelId, channelName, socket }: Props) {
           placeholder={`#${channelName} にメッセージを送信`}
           rows={1}
           className="flex-1 resize-none text-sm text-gray-900 placeholder-gray-400 focus:outline-none max-h-40"
-          style={{ minHeight: '24px' }}
+          style={{ minHeight: '24px', height: '24px' }}
         />
         <button
           onClick={() => void handleSubmit()}

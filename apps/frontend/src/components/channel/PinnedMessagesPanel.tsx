@@ -2,9 +2,11 @@
 
 import { useEffect } from 'react'
 import { usePinStore } from '@/stores/pin.store'
+import { useThreadStore } from '@/stores/thread.store'
 import { pinApi } from '@/lib/api/pin.api'
 import { usePins } from '@/hooks/usePins'
 import { PinnedMessageItem } from './PinnedMessageItem'
+import type { Message } from '@/types/message'
 
 type Props = {
   wsId: string
@@ -48,6 +50,33 @@ export function PinToggleButton() {
 export function PinnedMessagesPanel({ wsId, channelId }: Props) {
   const { pins, setPins, isPanelOpen, togglePanel } = usePinStore()
   const { unpin } = usePins(channelId)
+  const { openThread } = useThreadStore()
+
+  const handleJumpToThread = (messageId: string) => {
+    const pin = pins.find((p) => p.messageId === messageId)
+    if (!pin) return
+    const message: Message = {
+      id: pin.message.id,
+      content: pin.message.content,
+      channelId,
+      threadId: null,
+      editedAt: null,
+      createdAt: pin.message.createdAt,
+      user: {
+        id: pin.message.user.id,
+        username: pin.message.user.displayName,
+        displayName: pin.message.user.displayName,
+        avatarUrl: pin.message.user.avatarUrl,
+        status: 'OFFLINE',
+      },
+      attachments: [],
+      reactions: [],
+      _count: { replies: 0 },
+      replies: [],
+    }
+    openThread(message)
+    togglePanel()
+  }
 
   useEffect(() => {
     if (!isPanelOpen) return
@@ -79,7 +108,14 @@ export function PinnedMessagesPanel({ wsId, channelId }: Props) {
             ピン留めされたメッセージはありません
           </p>
         ) : (
-          pins.map((pin) => <PinnedMessageItem key={pin.id} pin={pin} onUnpin={unpin} />)
+          pins.map((pin) => (
+            <PinnedMessageItem
+              key={pin.id}
+              pin={pin}
+              onUnpin={unpin}
+              onJumpToThread={handleJumpToThread}
+            />
+          ))
         )}
       </div>
     </div>

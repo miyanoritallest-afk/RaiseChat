@@ -74,10 +74,7 @@ export function SearchModal({ wsId, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4"
-      onClick={handleClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={handleClose}>
       {/* オーバーレイ */}
       <div className="absolute inset-0 bg-black/40" />
 
@@ -107,8 +104,8 @@ export function SearchModal({ wsId, onClose }: Props) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="メッセージを検索..."
-            className="flex-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
+            placeholder="キーワードを入力してメッセージを検索"
+            className="flex-1 min-w-0 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
           />
           {query && (
             <button
