@@ -1353,4 +1353,67 @@ runner:  .next/standalone のみコピー（output: 'standalone' 設定が前提
 - フロントエンドの `notification.store.ts` に `markReadForChannel(channelId)` / `markReadForDmRoom(dmRoomId)` を追加（ストア内の対象通知を一括既読化）
 - `ChannelPage` / `DmPage` の `useEffect` でページマウント時にストア更新（即時 UI 反映）+ API 呼び出し（DB 反映）を両方実行
 
+---
+
+### 88. チャンネル・DM のドラッグ&ドロップ並び替え機能を実装した理由と設計
+
+**判断**：サイドバーのチャンネル一覧・DM一覧をドラッグ&ドロップで並び替えられる機能を実装した。並び順はサーバー側に永続化し、クロスデバイスで同期する設計にした。
+
+**技術選定**：
+- `@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities` を採用
+  - HTML5 Drag API ではなく PointerEvents ベースのため、Touch デバイスにも対応
+  - `PointerSensor` に `activationConstraint: { distance: 5 }` を設定し、通常クリックでドラッグが誤発火しないよう配慮
+- グリップアイコン（`GripVertical`）はホバー時のみ表示する `hidden group-hover:flex` で実装
+
+**DB 設計**：
+- `ChannelMember.position Int @default(0)` と `DmRoomMember.position Int @default(0)` を追加
+- 並び順はユーザー個人の設定（ワークスペース全体で共有しない）
+- 既存データの初期値は `ROW_NUMBER() OVER (PARTITION BY userId ORDER BY ...)` で自然順に設定
+
+**UI の更新方式**：楽観的更新（Optimistic Update）を採用。ドロップ直後にストアを書き換えて即時反映し、API 呼び出しはバックグラウンドで実行。失敗してもロールバックしない方針（UX 優先）。
+
+**カテゴリ間移動の制限**：チャンネルと DM はそれぞれ独立した `DndContext` を持ち、カテゴリをまたぐ移動は物理的に不可能。
+
+---
+
+### 89. ワークスペース切替時にチャンネル・DM ストアをリセットしていなかったバグ
+
+**問題**：並び替え後に別のワークスペースへ移動すると、前のワークスペースの並び順が一瞬表示されるバグが発生した。
+
+**原因**：Zustand のストア（`channel.store`・`dm.store`）はシングルトンで全ワークスペース共通。`AppLayout` の `useEffect` が新しいワークスペースのチャンネルを fetch する前に、古いワークスペースのデータがストアに残留していた。加えて `dm.store` の `reset()` に `dmRooms: []` が漏れており、DM リストが切り替え後もクリアされていなかった。
+
+**修正**：`workspaceId` 依存の `useEffect` 冒頭で `resetChannels()` と `resetDmRooms()` を呼び、fetch 前にストアを即座にクリアするよう変更。
+
+**教訓**：シングルトンストアはスコープを意識しないと、ページ遷移・切り替え時に前の状態が漏れる。コンテキストが変わるタイミングでの明示的なリセットが必要。
+
+---
+
+### 90. DmRoom にワークスペーススコープがなかった設計バグ
+
+**問題**：team-A で DM を作成すると team-B にも同じ DM が表示されるバグが発覚。
+
+**原因**：`DmRoom` モデルに `workspaceId` が存在せず、DM がユーザー間のグローバルな部屋として設計されていた。`findManyByUserId` は `userId` のみでフィルタするため、全ワークスペースの DM を横断して返していた。
+
+**修正内容**：
+- `DmRoom` に `workspaceId` カラムを追加し `Workspace` と外部キーで紐づけ
+- マイグレーションで既存データをメンバーの所属ワークスペースで初期化
+- `findManyByUserId`・`findOrCreateDirectRoom`・`createGroupRoom` に `workspaceId` フィルタを追加
+- controller → service → repository の全レイヤーに `workspaceId` を伝播
+
+**設計方針**：Slack と同様に「DM はワークスペース単位で独立する」仕様に統一。同じ相手でも team-A と team-B では別のDMスレッドになる。
+
+---
+
+### 91. DM 作成時に招待メンバーのワークスペース所属チェックが抜けていたセキュリティ問題
+
+**問題**：Claude Code Review により指摘。`WorkspaceMemberGuard` はリクエスト送信者がワークスペースのメンバーかどうかしか確認しない。`dto.memberIds` に別ワークスペースのユーザー ID を指定してもバリデーションが通り、DM を作成できてしまう。
+
+**影響**：`DmRoom.workspaceId` で正しく絞り込まれた DM 一覧に、外部ユーザーとのDMが混入してしまう。前エントリで修正したクロスワークスペース漏洩が、メンバー追加方向で再現される。
+
+**修正**：
+- `repository.areAllWorkspaceMembers(workspaceId, userIds)` を追加
+- `createDmRoom()` の冒頭で全 `memberIds` が同一ワークスペースに所属しているか確認し、未所属なら `403 Forbidden` を返す
+
+**教訓**：「送信者の認可」と「操作対象の所属確認」は別々に実装する必要がある。Guard はリクエスト送信者を守るが、ボディに含まれる任意の ID の検証は Service 層で明示的に行う。
+
 **設計の考え方**：「そのページを開く = そのコンテンツを読んだ」と解釈して既読にするのは Slack と同じ設計。通知はあくまで「未読であることの表示」であり、コンテンツを閲覧した時点で自動消去されるべき。
