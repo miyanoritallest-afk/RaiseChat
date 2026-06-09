@@ -59,6 +59,7 @@ model Workspace {
   // リレーション
   members       WorkspaceMember[]
   channels      Channel[]
+  dmRooms       DmRoom[]
   notifications Notification[]
 }
 
@@ -196,13 +197,15 @@ model Pin {
 // ─────────────────────────────────────────────
 
 model DmRoom {
-  id        String   @id @default(cuid())
-  name      String?
-  isGroup   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String?
+  isGroup     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // リレーション
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   members       DmRoomMember[]
   messages      DmMessage[]
   notifications Notification[]

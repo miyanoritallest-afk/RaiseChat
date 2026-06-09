@@ -33,19 +33,27 @@ export class DmRoomsController {
   constructor(private readonly dmRoomsService: DmRoomsService) {}
 
   @Get()
-  async getDmRooms(@CurrentUser() user: JwtUser) {
-    return this.dmRoomsService.getDmRooms(user.id)
+  async getDmRooms(@Param('wsId') wsId: string, @CurrentUser() user: JwtUser) {
+    return this.dmRoomsService.getDmRooms(user.id, wsId)
   }
 
   @Post()
-  async createDmRoom(@CurrentUser() user: JwtUser, @Body() dto: CreateDmRoomDto) {
-    return this.dmRoomsService.createDmRoom(user.id, dto)
+  async createDmRoom(
+    @Param('wsId') wsId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() dto: CreateDmRoomDto,
+  ) {
+    return this.dmRoomsService.createDmRoom(wsId, user.id, dto)
   }
 
   @Put('reorder')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async reorderDmRooms(@CurrentUser() user: JwtUser, @Body() dto: ReorderDmRoomsDto) {
-    return this.dmRoomsService.reorderDmRooms(user.id, dto)
+  async reorderDmRooms(
+    @Param('wsId') wsId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ReorderDmRoomsDto,
+  ) {
+    return this.dmRoomsService.reorderDmRooms(user.id, wsId, dto)
   }
 }
 
