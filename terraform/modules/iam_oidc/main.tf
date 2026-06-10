@@ -65,14 +65,18 @@ resource "aws_iam_policy" "github_actions" {
         ]
       },
       {
-        Sid    = "SSMSendCommand"
+        Sid    = "SSMSendCommandDocument"
         Effect = "Allow"
-        Action = [
-          "ssm:SendCommand",
-          "ssm:GetCommandInvocation"
-        ]
+        Action = ["ssm:SendCommand"]
         Resource = [
-          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
+          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript"
+        ]
+      },
+      {
+        Sid    = "SSMSendCommandInstance"
+        Effect = "Allow"
+        Action = ["ssm:SendCommand"]
+        Resource = [
           "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
         ]
         Condition = {
@@ -81,6 +85,12 @@ resource "aws_iam_policy" "github_actions" {
             "ssm:resourceTag/Project"     = var.project_name
           }
         }
+      },
+      {
+        Sid    = "SSMGetCommandInvocation"
+        Effect = "Allow"
+        Action = ["ssm:GetCommandInvocation"]
+        Resource = ["*"]
       },
       {
         Sid    = "SSMParameterRead"
