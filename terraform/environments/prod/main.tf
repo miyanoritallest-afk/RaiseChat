@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket         = "raisechat-terraform-state-REPLACE_WITH_ACCOUNT_ID"
+    bucket         = "raisechat-terraform-state-074610726755"
     key            = "prod/terraform.tfstate"
     region         = "ap-northeast-1"
     dynamodb_table = "raisechat-terraform-locks"
