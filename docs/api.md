@@ -10,8 +10,11 @@
 
 | 環境 | URL |
 |---|---|
-| 開発環境 | `http://localhost:4000` |
-| 本番環境 | `https://（Render URLを記載予定）` |
+| 開発環境 | `http://localhost:4000/api` |
+| 本番環境 | `http://raisechat-alb-1383858774.ap-northeast-1.elb.amazonaws.com/api` |
+
+> NestJSに `globalPrefix('api')` を設定済み。全エンドポイントは `/api/...` でアクセスする。  
+> Swagger UI: `http://raisechat-alb-1383858774.ap-northeast-1.elb.amazonaws.com/api/docs`
 
 ### 認証
 
@@ -205,7 +208,8 @@ GET /workspaces/:wsId/channels/:channelId/messages?cursor={messageId}&limit=50
     "description": "開発チームのWS",
     "iconUrl": null,
     "inviteCode": "abc123",
-    "createdAt": "2026-06-05T00:00:00.000Z"
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "_count": { "members": 3 }
   }
 ]
 ```
@@ -245,22 +249,6 @@ GET /workspaces/:wsId/channels/:channelId/messages?cursor={messageId}&limit=50
 **Headers** `Authorization: Bearer {token}` 必須（ワークスペースメンバーのみ）
 
 **Response 200** — ワークスペースオブジェクト（メンバー一覧含む）
-
----
-
-### PATCH /workspaces/:wsId
-
-ワークスペース情報を更新する。オーナーのみ。
-
-**Headers** `Authorization: Bearer {token}` 必須
-
-**Request Body**（すべて任意）
-
-```json
-{ "name": "New Name", "description": "新しい説明", "iconUrl": null }
-```
-
-**Response 200** — 更新後のワークスペースオブジェクト
 
 ---
 
