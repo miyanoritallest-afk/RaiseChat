@@ -77,6 +77,7 @@ export class WorkspacesRepository {
           iconUrl: true,
           inviteCode: true,
           createdAt: true,
+          _count: { select: { members: true } },
         },
       })
 
@@ -144,7 +145,18 @@ export class WorkspacesRepository {
         })
       }
 
-      return workspace
+      return tx.workspace.findUnique({
+        where: { id: workspace.id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          iconUrl: true,
+          inviteCode: true,
+          createdAt: true,
+          _count: { select: { members: true } },
+        },
+      })
     })
   }
 
