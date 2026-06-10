@@ -11,7 +11,7 @@ COPY apps/backend/package*.json ./apps/backend/
 RUN cd apps/backend && npm ci
 
 # Prismaクライアント生成（schema.prismaのoutput先: apps/backend/node_modules/.prisma/client）
-RUN cd apps/backend && npx prisma generate --schema ../prisma/schema.prisma
+RUN cd apps/backend && npx prisma generate --schema ../../prisma/schema.prisma
 
 # ソースコードをコピーしてビルド
 COPY apps/backend/. ./apps/backend/
