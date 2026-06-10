@@ -119,6 +119,8 @@ resource "aws_instance" "main" {
   }
 
   tags = {
-    Name = "${var.project_name}-ec2"
+    Name        = "${var.project_name}-ec2"
+    Environment = "production"
+    Project     = var.project_name
   }
 }

@@ -83,7 +83,7 @@ REGION="$(curl -s http://169.254.169.254/latest/meta-data/placement/region)"
 PARAMS=(DATABASE_URL JWT_SECRET SENTRY_DSN NEXT_PUBLIC_API_URL FRONTEND_URL AWS_S3_BUCKET_NAME AWS_REGION)
 
 > /app/.env.prod
-for PARAM in "${PARAMS[@]}"; do
+for PARAM in "$${PARAMS[@]}"; do
   VALUE=$(aws ssm get-parameter \
     --name "/raisechat/prod/$PARAM" \
     --with-decryption \
@@ -101,7 +101,7 @@ cat > /app/docker-compose.prod.yml << COMPOSE
 version: "3.9"
 services:
   backend:
-    image: ${ECR_REGISTRY}/raisechat-backend:latest
+    image: $${ECR_REGISTRY}/raisechat-backend:latest
     restart: unless-stopped
     env_file:
       - /app/.env.prod
@@ -109,7 +109,7 @@ services:
       - "127.0.0.1:4000:4000"
 
   frontend:
-    image: ${ECR_REGISTRY}/raisechat-frontend:latest
+    image: $${ECR_REGISTRY}/raisechat-frontend:latest
     restart: unless-stopped
     env_file:
       - /app/.env.prod
