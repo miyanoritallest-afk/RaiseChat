@@ -20,7 +20,7 @@
     ↓
 Swagger / Sentry 組み込み           ✅ 完了（PR #41）
     ↓
-フェーズD: Terraform構築 → 本番デプロイ  ⏳ 次に着手
+フェーズD: Terraform構築 → 本番デプロイ  ✅ 完了（2026-06-10）
     ↓
 フェーズE: セキュリティ強化・計測    ⏳ 未着手（本番稼働後）
 ```
@@ -51,13 +51,14 @@ Swagger / Sentry 組み込み           ✅ 完了（PR #41）
 5. **framer-motion アニメーション** — フェードイン・スライド
 6. **レスポンシブ対応** — モバイルでのサイドバー表示
 
-### フェーズD: AWS + Terraform インフラ構築
+### フェーズD: AWS + Terraform インフラ構築 ✅ 完了
 
 AWS構成: EC2 t3.small + ALB + RDS db.t3.micro + S3 + ECR
-（詳細は `C:\Users\miyan\.claude\plans\a-lint-e2e-steady-gosling.md` を参照）
+本番URL: http://raisechat-alb-1383858774.ap-northeast-1.elb.amazonaws.com
 
-- ドメインなし・HTTP運用でスタート（ALB DNS名: `xxxx.ap-northeast-1.elb.amazonaws.com`）
-- ACM/Route53 はドメイン取得後に追加可能な構成にしておく
-- Terraform state: S3 + DynamoDB（bootstrap手動1回のみ）
+- ドメインなし・HTTP運用（ALB DNS名でアクセス）
+- ACM/Route53 はドメイン取得後に追加可能な構成
+- Terraform state: S3（raisechat-terraform-state-074610726755）+ use_lockfile
 - GitHub Actions OIDC認証（アクセスキー不要）
 - SSM Session Manager でEC2アクセス（SSH鍵不要）
+- EC2インスタンス: i-02f37c071d1bf1efb（ap-northeast-1a）
