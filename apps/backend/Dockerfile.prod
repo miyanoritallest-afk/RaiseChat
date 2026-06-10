@@ -5,16 +5,17 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY apps/backend/package*.json ./
-RUN npm ci
-
-# monorepoルートのPrismaスキーマを取得してクライアント生成
+# monorepo構造を維持してインストール・ビルド
 COPY prisma ./prisma
-RUN npx prisma generate --schema ./prisma/schema.prisma
+COPY apps/backend/package*.json ./apps/backend/
+RUN cd apps/backend && npm ci
+
+# Prismaクライアント生成（schema.prismaのoutput先: apps/backend/node_modules/.prisma/client）
+RUN cd apps/backend && npx prisma generate --schema ../prisma/schema.prisma
 
 # ソースコードをコピーしてビルド
-COPY apps/backend/. .
-RUN npm run build
+COPY apps/backend/. ./apps/backend/
+RUN cd apps/backend && npm run build
 
 # ── Stage 2: 本番ランタイム ──────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -23,19 +24,19 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # 本番依存のみインストール
-COPY apps/backend/package*.json ./
-RUN npm ci --omit=dev
-
-# ビルド成果物をコピー
-COPY --from=builder /app/dist ./dist
+COPY apps/backend/package*.json ./apps/backend/
+RUN cd apps/backend && npm ci --omit=dev
 
 # Prismaクライアント（生成済み）をコピー
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/apps/backend/node_modules/.prisma ./apps/backend/node_modules/.prisma
+COPY --from=builder /app/apps/backend/node_modules/@prisma/client ./apps/backend/node_modules/@prisma/client
+
+# ビルド成果物をコピー
+COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 
 # マイグレーション実行用にスキーマをコピー
 COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 4000
 
-CMD ["node", "dist/main"]
+CMD ["node", "apps/backend/dist/main"]
