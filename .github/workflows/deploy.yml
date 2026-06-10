@@ -5,7 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# フェーズDでTerraformとAWSリソースが揃った時点で各ステップの "TODO" を実装に置き換える
+env:
+  AWS_REGION: ap-northeast-1
 
 jobs:
   # ──────────────────────────────────────────────────────────────
@@ -15,7 +16,7 @@ jobs:
     name: Build & Push Backend Image
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # OIDC認証に必要
+      id-token: write
       contents: read
     outputs:
       image-tag: ${{ steps.meta.outputs.tag }}
@@ -26,7 +27,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION || 'ap-northeast-1' }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -37,20 +38,18 @@ jobs:
         run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push backend image
-        # TODO: フェーズD完了後（ECRリポジトリ作成後）に以下のコメントを解除して実装
-        # env:
-        #   ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        #   ECR_REPOSITORY: raisechat-backend
-        #   IMAGE_TAG: ${{ steps.meta.outputs.tag }}
-        # run: |
-        #   docker build \
-        #     --file apps/backend/Dockerfile.prod \
-        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-        #     .
-        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        run: echo "TODO: docker build & push backend (フェーズD完了後に実装)"
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: raisechat-backend
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          docker build \
+            --file apps/backend/Dockerfile.prod \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
   # ──────────────────────────────────────────────────────────────
   # Job 2: フロントエンドDockerイメージをビルド → ECRにプッシュ
@@ -70,7 +69,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION || 'ap-northeast-1' }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -80,27 +79,34 @@ jobs:
         id: meta
         run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch ALB URL from SSM for build arg
+        id: alb-url
+        run: |
+          ALB_URL=$(aws ssm get-parameter \
+            --name "/raisechat/prod/NEXT_PUBLIC_API_URL" \
+            --query 'Parameter.Value' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+          echo "value=$ALB_URL" >> "$GITHUB_OUTPUT"
+
       - name: Build and push frontend image
-        # TODO: フェーズD完了後（ECRリポジトリ作成後）に以下のコメントを解除して実装
-        # env:
-        #   ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        #   ECR_REPOSITORY: raisechat-frontend
-        #   IMAGE_TAG: ${{ steps.meta.outputs.tag }}
-        #   NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}   # ALB DNS名
-        # run: |
-        #   docker build \
-        #     --file apps/frontend/Dockerfile.prod \
-        #     --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-        #     --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-        #     .
-        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        #   docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        run: echo "TODO: docker build & push frontend (フェーズD完了後に実装)"
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: raisechat-frontend
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          NEXT_PUBLIC_API_URL: ${{ steps.alb-url.outputs.value }}
+        run: |
+          docker build \
+            --file apps/frontend/Dockerfile.prod \
+            --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
   # ──────────────────────────────────────────────────────────────
-  # Job 3: EC2にSSM Session Manager経由でデプロイ
-  # Job 1 & 2 の完了を待って実行（直列）
+  # Job 3: EC2にSSM経由でデプロイ（Job 1 & 2 の完了を待って実行）
   # ──────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to EC2
@@ -116,23 +122,40 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION || 'ap-northeast-1' }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy via SSM Session Manager
-        # TODO: フェーズD完了後（EC2インスタンス作成後）に以下のコメントを解除して実装
-        # env:
-        #   EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
-        #   AWS_REGION: ${{ secrets.AWS_REGION }}
-        #   IMAGE_TAG: ${{ github.sha }}
-        # run: |
-        #   aws ssm send-command \
-        #     --instance-ids "$EC2_INSTANCE_ID" \
-        #     --document-name "AWS-RunShellScript" \
-        #     --parameters commands=[
-        #       "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com",
-        #       "cd /app && docker compose -f docker-compose.prod.yml pull",
-        #       "docker compose -f docker-compose.prod.yml up -d",
-        #       "docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy --schema ./prisma/schema.prisma"
-        #     ] \
-        #     --region "$AWS_REGION"
-        run: echo "TODO: SSM deploy to EC2 (フェーズD完了後に実装)"
+      - name: Deploy via SSM
+        env:
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters '{"commands":[
+              "set -euo pipefail",
+              "aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.ap-northeast-1.amazonaws.com",
+              "/app/fetch-env.sh",
+              "cd /app && docker compose -f docker-compose.prod.yml pull",
+              "docker compose -f docker-compose.prod.yml up -d --remove-orphans",
+              "docker compose -f docker-compose.prod.yml exec -T backend node -e \"const {execSync}=require(\\\"child_process\\\");execSync(\\\"npx prisma migrate deploy --schema ./prisma/schema.prisma\\\",{stdio:\\\"inherit\\\"})\""
+            ]}' \
+            --region "${{ env.AWS_REGION }}" \
+            --query 'Command.CommandId' \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          # デプロイ完了まで待機（最大10分）
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --cli-read-timeout 600
+
+          # 実行結果を確認
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query 'StatusDetails' \
+            --output text)
+          echo "Deploy status: $STATUS"
+          [ "$STATUS" = "Success" ] || exit 1
