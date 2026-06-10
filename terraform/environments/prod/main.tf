@@ -10,7 +10,7 @@ terraform {
     bucket         = "raisechat-terraform-state-074610726755"
     key            = "prod/terraform.tfstate"
     region         = "ap-northeast-1"
-    dynamodb_table = "raisechat-terraform-locks"
+    use_lockfile   = true
     encrypt        = true
   }
 }
