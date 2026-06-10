@@ -137,7 +137,7 @@ jobs:
               "/app/fetch-env.sh",
               "cd /app && docker compose -f docker-compose.prod.yml pull",
               "docker compose -f docker-compose.prod.yml up -d --remove-orphans",
-              "docker compose -f docker-compose.prod.yml exec -T backend node -e \"const {execSync}=require(\\\"child_process\\\");execSync(\\\"npx prisma migrate deploy --schema ./prisma/schema.prisma\\\",{stdio:\\\"inherit\\\"})\""
+              "cd /app && docker compose -f docker-compose.prod.yml exec -T backend /app/apps/backend/node_modules/.bin/prisma migrate deploy --schema /app/prisma/schema.prisma"
             ]}' \
             --region "${{ env.AWS_REGION }}" \
             --query 'Command.CommandId' \

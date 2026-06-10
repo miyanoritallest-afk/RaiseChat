@@ -79,7 +79,7 @@ mkdir -p "$APP_DIR"
 cat > /app/fetch-env.sh << 'FETCHENV'
 #!/bin/bash
 set -euo pipefail
-REGION="$(curl -s http://169.254.169.254/latest/meta-data/placement/region)"
+REGION="${aws_region}"
 PARAMS=(DATABASE_URL JWT_SECRET SENTRY_DSN NEXT_PUBLIC_API_URL FRONTEND_URL AWS_S3_BUCKET_NAME AWS_REGION)
 
 > /app/.env.prod
