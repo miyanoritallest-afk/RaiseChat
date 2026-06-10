@@ -40,9 +40,9 @@
 | EC2 | t3.small、Amazon Linux 2023、ap-northeast-1a |
 | ALB | raisechat-alb-1383858774.ap-northeast-1.elb.amazonaws.com |
 | RDS | db.t3.micro、PostgreSQL 16、シングルAZ |
-| ECR | 074610726755.dkr.ecr.ap-northeast-1.amazonaws.com/raisechat-{backend,frontend} |
-| S3 | raisechat-uploads-074610726755 |
-| Terraform state | S3: raisechat-terraform-state-074610726755 |
+| ECR | `<ACCOUNT_ID>`.dkr.ecr.ap-northeast-1.amazonaws.com/raisechat-{backend,frontend} |
+| S3 | raisechat-uploads-`<ACCOUNT_ID>` |
+| Terraform state | S3: raisechat-terraform-state-`<ACCOUNT_ID>` |
 | CD | GitHub Actions OIDC認証 → ECR push → SSM SendCommand でEC2更新 |
 
 ---

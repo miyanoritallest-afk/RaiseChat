@@ -37,7 +37,7 @@ cp .env.example .env
 docker compose up
 
 # 4. DBマイグレーション（初回のみ・別ターミナルで）
-docker compose exec backend npx prisma migrate dev --schema ../../prisma/schema.prisma
+docker compose exec backend npx prisma migrate dev --schema /app/prisma/schema.prisma
 ```
 
 | サービス | URL |

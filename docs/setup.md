@@ -45,7 +45,7 @@ docker compose up
 コンテナ起動後、別ターミナルで実行する。
 
 ```bash
-docker compose exec backend npx prisma migrate dev --schema ../../prisma/schema.prisma
+docker compose exec backend npx prisma migrate dev --schema /app/prisma/schema.prisma
 ```
 
 マイグレーション名を聞かれたら `init` と入力する。
