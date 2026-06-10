@@ -120,13 +120,16 @@ RaiseChatは、チームのコミュニケーションを効率化するSlack風
 
 ### 可用性
 
-| 環境 | サービス | 制約 |
+| 環境 | サービス | 備考 |
 |---|---|---|
-| フロントエンド | Vercel（無料プラン） | 商用利用制限あり・帯域制限あり |
-| バックエンド | Render（無料プラン） | 15分間アクセスがないとスリープする |
-| DB | Render PostgreSQL（無料プラン） | 容量1GB・90日で削除される可能性あり |
+| フロントエンド | AWS EC2（t3.small） | Next.js スタンドアロンサーバー、Nginx 経由 |
+| バックエンド | AWS EC2（t3.small、同居） | NestJS、Nginx リバースプロキシ |
+| DB | AWS RDS PostgreSQL 16（db.t3.micro） | シングルAZ、バックアップ7日保持 |
+| ロードバランサー | AWS ALB | HTTP:80、スティッキーセッション有効 |
+| コンテナレジストリ | AWS ECR | backend / frontend の2リポジトリ |
+| ファイルストレージ | AWS S3 | raisechat-uploads バケット、署名付きURL方式 |
 
-> ポートフォリオ用途として許容範囲とする。本番運用時は有料プランへの移行が必要。
+本番URL: http://raisechat-alb-1383858774.ap-northeast-1.elb.amazonaws.com
 
 ---
 
@@ -135,8 +138,8 @@ RaiseChatは、チームのコミュニケーションを効率化するSlack風
 | 制約 | 内容 |
 |---|---|
 | 開発リソース | 個人開発・学習目的 |
-| コスト | 無料枠で運用（Vercel・Render・AWS S3無料枠） |
-| 技術スタック | Next.js・NestJS・PostgreSQL・Socket.io・Prisma・AWS S3 |
+| コスト | AWS EC2+ALB+RDS+ECR（約5,000〜6,000円/月、RDS初年度無料枠で約3,000円/月） |
+| 技術スタック | Next.js・NestJS・PostgreSQL・Socket.io・Prisma・AWS S3・Terraform・GitHub Actions |
 | 対象外機能 | ボイスチャンネル・メール認証・Canvas（ドキュメント共同編集）・ワークフロービルダー |
 
 ---

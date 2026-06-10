@@ -7,19 +7,23 @@
 ## 1. システム全体構成
 
 ```
-ブラウザ（Next.js）
+ブラウザ
   │
   ├── HTTP（REST API）
   │     ↓
-  │  NestJS（Render）
-  │     ├── Controller / Service / Repository（三層構造）
-  │     ├── JWT認証ガード
-  │     ├── Prisma → PostgreSQL（Render）
-  │     └── AWS S3（ファイルストレージ）
+  │  ALB（HTTP:80）
+  │     ↓
+  │  Nginx（EC2:80）
+  │     ├── /api/* → NestJS（localhost:4000）
+  │     │     ├── Controller / Service / Repository（三層構造）
+  │     │     ├── JWT認証ガード
+  │     │     ├── Prisma → RDS PostgreSQL 16
+  │     │     └── AWS S3（署名付きURL方式）
+  │     └── /*   → Next.js（localhost:3000）
   │
   └── WebSocket（Socket.io）
         ↕ リアルタイム通信
-     NestJS Gateway（同一サーバー）
+     Nginx: /socket.io/* → NestJS Gateway（同一EC2）
 ```
 
 ### 環境別の構成
@@ -27,7 +31,19 @@
 | 環境 | フロントエンド | バックエンド | DB |
 |---|---|---|---|
 | 開発環境 | Docker（localhost:3000） | Docker（localhost:4000） | Docker PostgreSQL（localhost:5432） |
-| 本番環境 | Vercel | Render | Render PostgreSQL |
+| 本番環境 | EC2（Next.js standalone + Nginx） | EC2（NestJS + Nginx、同居） | RDS PostgreSQL 16（ap-northeast-1a） |
+
+### 本番環境の詳細
+
+| リソース | 詳細 |
+|---|---|
+| EC2 | t3.small、Amazon Linux 2023、ap-northeast-1a |
+| ALB | raisechat-alb-1383858774.ap-northeast-1.elb.amazonaws.com |
+| RDS | db.t3.micro、PostgreSQL 16、シングルAZ |
+| ECR | `<ACCOUNT_ID>`.dkr.ecr.ap-northeast-1.amazonaws.com/raisechat-{backend,frontend} |
+| S3 | raisechat-uploads-`<ACCOUNT_ID>` |
+| Terraform state | S3: raisechat-terraform-state-`<ACCOUNT_ID>` |
+| CD | GitHub Actions OIDC認証 → ECR push → SSM SendCommand でEC2更新 |
 
 ---
 
@@ -68,7 +84,14 @@
 
 - 画像・動画をDBやサーバーに保存せず専用ストレージで管理
 - 業界標準のクラウドストレージであり採用担当者への訴求力がある
-- 無料枠（5GB）でポートフォリオ用途は十分に賄える
+- S3キーをDBに保存・署名付きURLは読み取り時生成（URLの有効期限問題を回避）
+
+### インフラ：Terraform + GitHub Actions
+
+- VPC・EC2・ALB・RDS・ECR・S3・IAMを全てTerraformでコード管理（Infrastructure as Code）
+- GitHub Actions OIDC認証によりAWSアクセスキーなしでECRへのpushが可能
+- mainブランチへのマージで自動デプロイ（ECRイメージビルド → SSM SendCommandでEC2更新）
+- SSM Session Managerでキーレス・踏み台なしのEC2アクセスを実現
 
 ---
 

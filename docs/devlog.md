@@ -1464,3 +1464,88 @@ runner:  .next/standalone のみコピー（output: 'standalone' 設定が前提
 **原因**：`module: nodenext` では ESM の namespace import（`import * as`）が CJS モジュールに対して厳格に扱われる。`@sentry/nestjs` はデュアルモジュールだが、named export を直接指定しないと型チェックが通らないケースがある。
 
 **対応**：`import { captureException, init as sentryInit } from '@sentry/nestjs'` の named import に統一した。`@sentry/nextjs`（フロントエンド）は Next.js SDK として namespace import が標準的なため `import * as Sentry` のままとした。
+
+---
+
+## 2026-06-10 フェーズD：AWS Terraform インフラ構築・本番デプロイ
+
+### 95. Dockerfileを monorepo 構造に合わせて全面書き直した理由
+
+**問題**：初期の `apps/backend/Dockerfile.prod` は WORKDIR を `/app` のルートに置き、バックエンドファイルをルート直下に展開する構成だった。これにより Prisma の `output = "../apps/backend/node_modules/.prisma/client"` パスが本番ビルドで解決できず、20件以上の TypeScript ビルドエラーが発生した。
+
+**根本原因**：Prisma の `schema.prisma` に `output = "../apps/backend/node_modules/.prisma/client"` と設定されている。これはリポジトリルートから見て `apps/backend/` 以下に client を生成するパス。Dockerfile がルートを `/app` として `apps/backend/` 以下にファイルを置かない設計だと、`prisma generate` と TypeScript の import パスがずれる。
+
+**修正**：Dockerfile を monorepo 構造（`/app/apps/backend/`）を維持する形に再設計した。
+- `WORKDIR /app` を維持したまま `apps/backend/` にファイルを配置
+- `cd apps/backend && npx prisma generate --schema ../../prisma/schema.prisma` でスキーマパスを正確に指定
+- CMD を `node apps/backend/dist/main` に変更
+
+---
+
+### 96. SSM SendCommand の IAM ポリシーを Statement に分割した理由
+
+**問題**：GitHub Actions から `aws ssm send-command` を実行すると `AccessDeniedException` が発生した。
+
+**原因**：IAM ポリシーの Statement で SSM ドキュメント ARN と EC2 インスタンス ARN を同一 Statement にまとめ、`ssm:resourceTag/` 条件を付与していた。`ssm:resourceTag/` 条件は EC2 インスタンス ARN にのみ適用できるが、ドキュメント ARN（`arn:aws:ssm:::document/AWS-RunShellScript`）に対して評価されると常に拒否になる。
+
+**修正**：Statement を3つに分割した。
+1. `SSMSendCommandDocument` — ドキュメント ARN、条件なし
+2. `SSMSendCommandInstance` — EC2 インスタンス ARN、タグ条件あり
+3. `SSMGetCommandInvocation` — `*`、条件なし
+
+`terraform apply` がポリシーを反映しなかったため `aws iam create-policy-version` で直接更新した。
+
+---
+
+### 97. fetch-env.sh の REGION 取得を IMDSv2 から Terraform templatefile 変数に変更した理由
+
+**問題**：EC2 の `fetch-env.sh` が `curl http://169.254.169.254/latest/meta-data/placement/region` で Region を取得しようとしたが、IMDSv2 トークンなしでは空文字が返り、SSM のエンドポイントが `https://ssm..amazonaws.com`（Region が空）になり接続エラーになった。
+
+**修正**：`user_data.sh` を Terraform `templatefile` 関数で処理し、`REGION="${aws_region}"` として Terraform 変数から直接埋め込む方式に変更した。
+
+---
+
+### 98. Prisma migrate deploy の実行にコンテナ内バイナリを使った理由
+
+**問題**：デプロイスクリプトで `npx prisma migrate deploy` を実行すると、npx が最新の Prisma v7 をダウンロードし、v7 の新しいスキーマ構文チェックで `url = env("DATABASE_URL")` が非推奨エラーとなり失敗した。
+
+**修正**：コンテナ内にインストール済みの Prisma バイナリを直接呼ぶように変更した。
+```bash
+docker compose exec -T backend /app/apps/backend/node_modules/.bin/prisma migrate deploy \
+  --schema /app/prisma/schema.prisma
+```
+これにより npx によるダウンロードが発生せず、Prisma 6.x（プロジェクト指定バージョン）で確実に実行できる。
+
+---
+
+### 99. NestJS の globalPrefix('api') とフロントエンドの BASE_URL 修正
+
+**問題**：本番環境でログインしようとすると「固まる」現象が発生した。
+
+**原因**：NestJS に `app.setGlobalPrefix('api')` を設定したため全エンドポイントが `/api/...` になったが、フロントエンドの `client.ts` の BASE_URL が `http://localhost:4000`（`/api` なし）のままで、`/auth/login` に 404 が返っていた。`catch(() => {})` でエラーが無視されていたため UI が固まったように見えた。
+
+**修正**：
+- `apps/frontend/src/lib/api/client.ts`: `BASE_URL` を `${NEXT_PUBLIC_API_URL}/api` に変更
+- `apps/frontend/src/lib/api/upload.api.ts`: 同様に `/api` を追加
+- `apps/backend/src/main.ts`: Swagger の setup パスは `api/docs` のまま維持（`SwaggerModule.setup` のパスは globalPrefix と独立）
+
+---
+
+## 2026-06-10 本番稼働後バグ修正
+
+### 100. ワークスペース作成・参加後に一覧画面がクラッシュするバグ
+
+**問題**：サイドバーの「ワークスペース一覧」ボタンを押すと `TypeError: Cannot read properties of undefined (reading 'members')` が発生してページがクラッシュした。Playwright でコンソールエラーを確認して特定。
+
+**原因**：
+- `WorkspaceList.tsx` の91行目で `ws._count.members`（メンバー数表示）を参照している
+- `createWithGeneralChannel`（ワークスペース作成）と `joinByInviteCode`（招待コード参加）の2つのリポジトリメソッドが、レスポンスに `_count` フィールドを含めていなかった
+- 作成・参加後のレスポンスが `addWorkspace()` で Zustand ストアに直接追加されるため、`_count: undefined` なオブジェクトが蓄積された
+- `/workspaces` ページに遷移した際に `ws._count.members` を参照して TypeError
+
+**修正**：
+1. `workspaces.repository.ts` の `createWithGeneralChannel`: `workspace.create` の `select` に `_count: { select: { members: true } }` を追加
+2. `workspaces.repository.ts` の `joinByInviteCode`: 最後の `return workspace` を `return tx.workspace.findUnique(...)` で `_count` 込みのオブジェクトを再取得して返すよう変更
+3. `WorkspaceList.tsx`: `ws._count?.members ?? 0` でオプショナルチェーン（防御的実装）
+
+**教訓**：作成・更新系のAPIレスポンスも、一覧取得と同じフィールド構成にする必要がある。create/join のレスポンスを「最低限の情報だけ返す」実装にすると、そのレスポンスをストアに追加した際に表示用フィールドが欠けてクラッシュする。`_count` や関連テーブルの集計フィールドは特に漏れやすい。
