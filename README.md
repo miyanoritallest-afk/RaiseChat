@@ -84,7 +84,21 @@ docker compose exec backend npx prisma migrate dev --schema /app/prisma/schema.p
 | フェーズC | UI/UX改善（shadcn/ui・Skeletonローダー・framer-motion・DnD並び替え） | ✅ 完了 |
 | Swagger / Sentry | APIドキュメント・エラートラッキング | ✅ 完了 |
 | フェーズD | AWS Terraform インフラ構築・本番デプロイ | ✅ 完了 |
-| フェーズE | セキュリティ強化・パフォーマンス計測 | ⏳ 未着手 |
+
+---
+
+## 拡張候補機能
+
+現スコープでは実装しないが、検討・設計レベルで把握している拡張ポイント。
+詳細は [docs/requirements.md#拡張候補](docs/requirements.md) を参照。
+
+| 機能 | 概要 |
+|------|------|
+| セキュリティ強化 | HTTPS/TLS対応（ACM + Route53）・セキュリティヘッダー強化 |
+| パフォーマンス計測 | Lighthouse・k6負荷試験の本番計測・ボトルネック改善 |
+| Redisキャッシュ | チャンネル一覧・プロフィール等のDBクエリ結果をキャッシュしDB負荷を軽減 |
+| Socket.ioスケールアウト | Redis PubSubを使って複数EC2でWebSocket接続を共有 |
+| HTTPS対応 | ドメイン取得後にACM証明書 + Route53で独自ドメイン化 |
 
 ---
 
