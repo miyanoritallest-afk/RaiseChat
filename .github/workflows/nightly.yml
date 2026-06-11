@@ -137,7 +137,8 @@ jobs:
         working-directory: apps/frontend
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
-          API_BASE_URL: http://localhost:4000
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api
+          API_BASE_URL: http://localhost:4000/api
 
       - name: Upload Playwright report
         if: always()
@@ -204,12 +205,18 @@ jobs:
         run: npx wait-on http://localhost:4000/api/health --timeout 30000
         working-directory: apps/backend
 
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
       - name: Run k6 smoke test
-        uses: grafana/k6-action@v0.3.1
-        with:
-          filename: k6/smoke.js
+        run: mkdir -p k6/results && k6 run --out json=k6/results/smoke.json k6/smoke.js
         env:
-          BASE_URL: http://localhost:4000
+          BASE_URL: http://localhost:4000/api
 
       - name: Upload k6 results
         if: always()
