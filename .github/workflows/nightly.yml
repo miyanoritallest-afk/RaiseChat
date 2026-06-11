@@ -130,7 +130,7 @@ jobs:
           PORT: 3000
 
       - name: Wait for services to be ready
-        run: npx wait-on http://localhost:4000/health http://localhost:3000 --timeout 60000
+        run: npx wait-on http://localhost:4000/api/health http://localhost:3000 --timeout 60000
 
       - name: Run Playwright tests
         run: npx playwright test --project=chromium --project=realtime
@@ -201,7 +201,7 @@ jobs:
           AWS_S3_BUCKET_NAME: ci-dummy-bucket
 
       - name: Wait for backend to be ready
-        run: npx wait-on http://localhost:4000/health --timeout 30000
+        run: npx wait-on http://localhost:4000/api/health --timeout 30000
         working-directory: apps/backend
 
       - name: Run k6 smoke test
