@@ -37,3 +37,9 @@ apps/backend/coverage/
 
 # k6
 k6/results/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
