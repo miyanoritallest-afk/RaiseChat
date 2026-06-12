@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Copy, Check } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { X, Copy, Check, Pencil, Trash2 } from 'lucide-react'
 import type { Workspace, WorkspaceMember } from '@/types/workspace'
 import { workspaceApi } from '@/lib/api/workspace.api'
+import { useAuthStore } from '@/stores/auth.store'
+import { useWorkspaceStore } from '@/stores/workspace.store'
 
 type Tab = 'overview' | 'members'
 
@@ -13,25 +16,82 @@ type Props = {
 }
 
 export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const { updateWorkspace, removeWorkspace } = useWorkspaceStore()
+
   const [tab, setTab] = useState<Tab>('overview')
   const [copied, setCopied] = useState(false)
   const [members, setMembers] = useState<WorkspaceMember[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
 
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState(workspace.name)
+  const [isRenameSubmitting, setIsRenameSubmitting] = useState(false)
+  const [renameError, setRenameError] = useState('')
+
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const isOwner = members.some((m) => m.user.id === user?.id && m.role === 'OWNER')
+
   useEffect(() => {
-    if (tab !== 'members' || members.length > 0) return
-    setIsLoadingMembers(true)
+    // メンバー一覧は概要タブでもOWNER判定に使うため常に取得
     workspaceApi
       .getMembers(workspace.id)
       .then(setMembers)
       .catch(() => {})
-      .finally(() => setIsLoadingMembers(false))
-  }, [tab, workspace.id, members.length])
+  }, [workspace.id])
+
+  useEffect(() => {
+    if (tab !== 'members' || isLoadingMembers) return
+    setIsLoadingMembers(true)
+    workspaceApi
+      .getMembers(workspace.id)
+      .then((data) => {
+        setMembers(data)
+        setIsLoadingMembers(false)
+      })
+      .catch(() => setIsLoadingMembers(false))
+  }, [tab, workspace.id, isLoadingMembers])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(workspace.inviteCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleRenameSubmit = async () => {
+    const trimmed = renameValue.trim()
+    if (!trimmed) return
+    if (trimmed === workspace.name) {
+      setIsRenaming(false)
+      return
+    }
+    setIsRenameSubmitting(true)
+    setRenameError('')
+    try {
+      const updated = await workspaceApi.updateWorkspace(workspace.id, { name: trimmed })
+      updateWorkspace(updated)
+      setIsRenaming(false)
+    } catch (e) {
+      setRenameError(e instanceof Error ? e.message : '更新に失敗しました')
+    } finally {
+      setIsRenameSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await workspaceApi.deleteWorkspace(workspace.id)
+      removeWorkspace(workspace.id)
+      onClose()
+      router.push('/workspaces')
+    } catch {
+      setIsDeleting(false)
+      setDeleteConfirm(false)
+    }
   }
 
   return (
@@ -77,9 +137,57 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
         <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
           {tab === 'overview' && (
             <div className="space-y-4">
+              {/* ワークスペース名（OWNERのみ編集可） */}
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-1">ワークスペース名</p>
-                <p className="text-sm text-gray-900">{workspace.name}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-medium text-gray-700">ワークスペース名</p>
+                  {isOwner && !isRenaming && (
+                    <button
+                      onClick={() => {
+                        setRenameValue(workspace.name)
+                        setRenameError('')
+                        setIsRenaming(true)
+                      }}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      変更
+                    </button>
+                  )}
+                </div>
+                {isRenaming ? (
+                  <div className="space-y-2">
+                    <input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleRenameSubmit()
+                        if (e.key === 'Escape') setIsRenaming(false)
+                      }}
+                      disabled={isRenameSubmitting}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoFocus
+                    />
+                    {renameError && <p className="text-xs text-red-500">{renameError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => void handleRenameSubmit()}
+                        disabled={isRenameSubmitting || !renameValue.trim()}
+                        className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        保存
+                      </button>
+                      <button
+                        onClick={() => setIsRenaming(false)}
+                        className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-900">{workspace.name}</p>
+                )}
               </div>
 
               {workspace.description && (
@@ -116,6 +224,43 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
                   </button>
                 </div>
               </div>
+
+              {/* ワークスペース削除（OWNERのみ） */}
+              {isOwner && (
+                <div className="pt-2 border-t border-gray-100">
+                  {deleteConfirm ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+                      <p className="text-sm text-red-700 font-medium">本当に削除しますか？</p>
+                      <p className="text-xs text-red-500">
+                        ワークスペース内のすべてのチャンネル・メッセージが削除されます。この操作は取り消せません。
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void handleDelete()}
+                          disabled={isDeleting}
+                          className="px-3 py-1 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {isDeleting ? '削除中...' : '削除する'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(false)}
+                          className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteConfirm(true)}
+                      className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      ワークスペースを削除
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

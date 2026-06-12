@@ -13,4 +13,9 @@ export const workspaceApi = {
     apiClient.post<Workspace>('/workspaces/join', { inviteCode }),
 
   getMembers: (wsId: string) => apiClient.get<WorkspaceMember[]>(`/workspaces/${wsId}/members`),
+
+  updateWorkspace: (wsId: string, data: { name?: string; description?: string }) =>
+    apiClient.patch<Workspace>(`/workspaces/${wsId}`, data),
+
+  deleteWorkspace: (wsId: string) => apiClient.delete<void>(`/workspaces/${wsId}`),
 }

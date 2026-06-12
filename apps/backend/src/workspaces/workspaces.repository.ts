@@ -166,6 +166,26 @@ export class WorkspacesRepository {
     })
   }
 
+  async update(workspaceId: string, data: { name?: string; description?: string }) {
+    return this.prisma.workspace.update({
+      where: { id: workspaceId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        iconUrl: true,
+        inviteCode: true,
+        createdAt: true,
+        _count: { select: { members: true } },
+      },
+    })
+  }
+
+  async delete(workspaceId: string) {
+    return this.prisma.workspace.delete({ where: { id: workspaceId } })
+  }
+
   async isOwner(userId: string, workspaceId: string): Promise<boolean> {
     const member = await this.prisma.workspaceMember.findUnique({
       where: { userId_workspaceId: { userId, workspaceId } },
