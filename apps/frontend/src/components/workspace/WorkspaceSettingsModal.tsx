@@ -36,24 +36,14 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
   const isOwner = members.some((m) => m.user.id === user?.id && m.role === 'OWNER')
 
   useEffect(() => {
-    // メンバー一覧は概要タブでもOWNER判定に使うため常に取得
+    // メンバー一覧はOWNER判定・メンバータブ両方で使うため初回マウント時に取得
+    setIsLoadingMembers(true)
     workspaceApi
       .getMembers(workspace.id)
       .then(setMembers)
       .catch(() => {})
+      .finally(() => setIsLoadingMembers(false))
   }, [workspace.id])
-
-  useEffect(() => {
-    if (tab !== 'members' || isLoadingMembers) return
-    setIsLoadingMembers(true)
-    workspaceApi
-      .getMembers(workspace.id)
-      .then((data) => {
-        setMembers(data)
-        setIsLoadingMembers(false)
-      })
-      .catch(() => setIsLoadingMembers(false))
-  }, [tab, workspace.id, isLoadingMembers])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(workspace.inviteCode)
