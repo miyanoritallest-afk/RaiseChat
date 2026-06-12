@@ -8,14 +8,15 @@ import { useChannelStore } from '@/stores/channel.store'
 export default function WorkspacePage() {
   const params = useParams<{ workspaceId: string }>()
   const router = useRouter()
-  const { channels } = useChannelStore()
+  const { channels, loadedWorkspaceId } = useChannelStore()
 
   useEffect(() => {
-    if (channels.length > 0) {
+    // このWSのチャンネルがロード済みのときだけリダイレクト（別WSのデータで誤遷移しない）
+    if (loadedWorkspaceId === params.workspaceId && channels.length > 0) {
       const defaultChannel = channels.find((ch) => ch.isDefault) ?? channels[0]
       router.replace(`/${params.workspaceId}/${defaultChannel.id}`)
     }
-  }, [channels, params.workspaceId, router])
+  }, [channels, loadedWorkspaceId, params.workspaceId, router])
 
   return (
     <AppLayout workspaceId={params.workspaceId}>

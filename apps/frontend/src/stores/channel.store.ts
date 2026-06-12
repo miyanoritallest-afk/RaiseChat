@@ -6,7 +6,8 @@ import type { Channel } from '@/types/channel'
 type ChannelStore = {
   channels: Channel[]
   currentChannel: Channel | null
-  setChannels: (channels: Channel[]) => void
+  loadedWorkspaceId: string | null
+  setChannels: (channels: Channel[], workspaceId: string) => void
   setCurrentChannel: (channel: Channel | null) => void
   addChannel: (channel: Channel) => void
   updateChannel: (channel: Channel) => void
@@ -18,8 +19,9 @@ type ChannelStore = {
 export const useChannelStore = create<ChannelStore>((set) => ({
   channels: [],
   currentChannel: null,
+  loadedWorkspaceId: null,
 
-  setChannels: (channels) => set({ channels }),
+  setChannels: (channels, workspaceId) => set({ channels, loadedWorkspaceId: workspaceId }),
   setCurrentChannel: (channel) => set({ currentChannel: channel }),
   addChannel: (channel) => set((state) => ({ channels: [...state.channels, channel] })),
   updateChannel: (channel) =>
@@ -41,5 +43,5 @@ export const useChannelStore = create<ChannelStore>((set) => ({
       const rest = state.channels.filter((c) => !orderedIds.includes(c.id))
       return { channels: [...reordered, ...rest] }
     }),
-  reset: () => set({ channels: [], currentChannel: null }),
+  reset: () => set({ channels: [], currentChannel: null, loadedWorkspaceId: null }),
 }))

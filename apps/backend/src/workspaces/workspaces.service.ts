@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { WorkspacesRepository } from './workspaces.repository'
 import { CreateWorkspaceDto } from './dto/create-workspace.dto'
 import { JoinWorkspaceDto } from './dto/join-workspace.dto'
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto'
 
 @Injectable()
 export class WorkspacesService {
@@ -37,6 +38,14 @@ export class WorkspacesService {
       throw new HttpException('招待コードが無効です', HttpStatus.NOT_FOUND)
     }
     return workspace
+  }
+
+  async updateWorkspace(workspaceId: string, dto: UpdateWorkspaceDto) {
+    return this.workspacesRepository.update(workspaceId, dto)
+  }
+
+  async deleteWorkspace(workspaceId: string) {
+    return this.workspacesRepository.delete(workspaceId)
   }
 
   async removeMember(workspaceId: string, targetUserId: string) {

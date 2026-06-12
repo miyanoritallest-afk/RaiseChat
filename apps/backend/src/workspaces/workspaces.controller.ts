@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common'
@@ -13,6 +14,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 import { WorkspacesService } from './workspaces.service'
 import { CreateWorkspaceDto } from './dto/create-workspace.dto'
 import { JoinWorkspaceDto } from './dto/join-workspace.dto'
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { WorkspaceMemberGuard } from '../common/guards/workspace-member.guard'
 import { WorkspaceOwnerGuard } from '../common/guards/workspace-owner.guard'
@@ -59,6 +61,27 @@ export class WorkspacesController {
   @ApiResponse({ status: 404, description: '未存在' })
   async getWorkspace(@Param('wsId') wsId: string) {
     return this.workspacesService.getWorkspace(wsId)
+  }
+
+  @Patch(':wsId')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceOwnerGuard)
+  @ApiParam({ name: 'wsId', description: 'ワークスペースID' })
+  @ApiOperation({ summary: 'ワークスペース更新（オーナーのみ）' })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 403, description: 'オーナー以外' })
+  async updateWorkspace(@Param('wsId') wsId: string, @Body() dto: UpdateWorkspaceDto) {
+    return this.workspacesService.updateWorkspace(wsId, dto)
+  }
+
+  @Delete(':wsId')
+  @UseGuards(WorkspaceMemberGuard, WorkspaceOwnerGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'wsId', description: 'ワークスペースID' })
+  @ApiOperation({ summary: 'ワークスペース削除（オーナーのみ）' })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 403, description: 'オーナー以外' })
+  async deleteWorkspace(@Param('wsId') wsId: string) {
+    return this.workspacesService.deleteWorkspace(wsId)
   }
 
   @Get(':wsId/members')
