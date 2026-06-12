@@ -7,6 +7,18 @@ Slack風チャットアプリケーション。ワークスペース・チャン
 
 ---
 
+## スクリーンショット
+
+| チャンネル・スレッド | ダイレクトメッセージ |
+|---|---|
+| ![スレッド](docs/images/screenshot-thread.png) | ![DM](docs/images/screenshot-dm.png) |
+
+| メンバー一覧 | ワークスペース選択 |
+|---|---|
+| ![メンバー一覧](docs/images/screenshot-members.png) | ![ワークスペース](docs/images/screenshot-workspaces.png) |
+
+---
+
 ## 主な機能
 
 - **認証** — ユーザー登録・ログイン・JWT認証・プロフィール設定（アバター・ステータス）
