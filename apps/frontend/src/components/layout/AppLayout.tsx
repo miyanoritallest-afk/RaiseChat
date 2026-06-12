@@ -76,7 +76,7 @@ export function AppLayout({ workspaceId, children }: Props) {
 
     channelApi
       .getChannels(workspaceId)
-      .then(setChannels)
+      .then((channels) => setChannels(channels, workspaceId))
       .catch(() => {})
 
     dmApi
